@@ -1,14 +1,15 @@
 <?php
 
 $servername = 'Localhost';
-$useername = 'root';
+$username = 'root';
 $password = '';
-$dbName = 'formulaio-siscofi';
+$dbName = 'formulario-siscofi';
+try{
 
 $conn = new mysqli($servername, $username, $password, $dbName
 );
-if ($conexao->connect_error) {
-    die('Erro'. $conexao->connect_error);
+if ($conn->connect_error) {
+    die('Erro'. $conn->connect_error);
 }
 $nome = $_POST['nome'];
 $cpf = $_POST['cpf'];
@@ -19,19 +20,29 @@ $data_nascimento = $_POST['data_nascimento'];
 $senha = $_POST['senha'];
 $confirmar_senha = $_POST['confirmar_senha'];
 if ($senha !== $confirmar_senha) {
-    echo "As senhas não coincidem!";
-    exit;
+    throw new Exception( "As senhas não coincidem!");
+    
 }
+$senha_hash = password_hash($senha, PASSWORD_DEFAULT);
 
 $sql = "INSERT INTO usuarios (nome, cpf, email, telefone, genero, data_nascimento, senha) 
-        VALUES ('$nome', '$cpf', '$email', '$telefone', '$genero', '$data_nascimento', '$senha')";
+            VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("sssssss", $nome, $cpf, $email, $telefone, $genero, $data_nascimento, $senha_hash);
+    $stmt->execute();
 
 
-if ($conn->query($sql) === TRUE) {
-    echo "Usuário cadastrado";
-} else {
-    echo "Erro: " . $sql . "<br>" . $conn->error;
+    if ($stmt->affected_rows > 0) {
+        echo "Usuário cadastrado";
+    } else {
+        throw new Exception("Erro ao cadastrar usuário");
+    }
+
+    $stmt->close();
+    $conn->close();
+} catch (Exception $e) {
+    echo "Erro: " . $e->getMessage();
 }
 
-
-$conn->close();
+?>
