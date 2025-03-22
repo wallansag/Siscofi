@@ -2,7 +2,7 @@
 
 $servername = 'Localhost';
 $username = 'root';
-$password = '';
+$password = 'Genesis@614';
 $dbName = 'formulario-siscofi';
 try{
 
