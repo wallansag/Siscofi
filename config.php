@@ -3,7 +3,7 @@
 $servername = 'Localhost';
 $username = 'root';
 $password = 'Genesis@614';
-$dbName = 'formulario-siscofi';
+$dbName = 'formulario-si';
 try{
 
 $conn = new mysqli($servername, $username, $password, $dbName
