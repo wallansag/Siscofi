@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formulario de Inscrição: Siscofi</title>
+    <title>Formulário de Inscrição: Siscofi</title>
     <style>@import url(CSS/Style.css);</style>
 </head>
 <body>
     <header>
-        <img src="CSS/anexos/SISCOFI.png" alt="Siscofi">
-        <h1><p> Formulário de Inscrição</p></h1>
+        <img src="CSS/anexos/SISCOFI.png" alt="Logotipo do Siscofi">
+        <h1>Formulário de Inscrição</h1>
     </header>
     
-    <form id="registration-form" method="POST">
+    <form action="/submit-form" method="POST">
         <p><label for="nome">Nome Completo</label></p>
         <input type="text" id="nome" name="nome" class="inputUser" required>
 
@@ -25,7 +25,7 @@
         <p><label for="telefone">Telefone</label></p>
         <input type="tel" id="telefone" name="telefone" class="inputUser" required>
 
-        <p> Gênero:</p>
+        <p>Gênero:</p>
         <select name="genero" required>
             <option value="">Selecione uma opção</option>
             <option value="1">Feminino</option>
@@ -33,7 +33,7 @@
             <option value="3">Outro</option>
         </select>
 
-        <p><label for="data_nascimento">Data  deNascimento</label></p>
+        <p><label for="data_nascimento">Data de Nascimento</label></p>
         <input type="date" name="data_nascimento" id="data_nascimento" class="inputUser" required>
 
         <p><label for="senha">Crie uma Senha</label></p>
@@ -42,32 +42,8 @@
         <p><label for="confirm-senha">Confirme a Senha</label></p>
         <input type="password" name="confirm-senha" id="confirm-senha" class="inputUser" required>
 
-        <button type="submit">Enviar</button>
+        <a href="index.html"><button type="submit">Enviar</button></a>
         <button type="reset">Limpar</button>
     </form>
-
-    <script>
-        document.getElementById('registration-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const formData = new FormData(this);
-            const data = new URLSearchParams();
-            formData.forEach((value, key) => {
-                data.append(key, value);
-            });
-
-            fetch('http://localhost:3000/submit-form', {
-                method: 'POST',
-                body: data
-            })
-            .then(response => response.text())
-            .then(result => {
-                alert(result);
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-            });
-        });
-    </script>
 </body>
 </html>
