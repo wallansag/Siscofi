@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Siscofi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#4299e1', // Azul Siscofi
+                        secondary: '#2d3748', // Azul escuro para texto
+                        accent: '#48bb78', // Verde para sucesso
+                        danger: '#f56565', // Vermelho para erro
+                        background: '#f0f2f5', // Fundo claro
+                        card: '#ffffff', // Cor dos cards/formulários
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom styles for better aesthetics and responsiveness */
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Inter', sans-serif;
+        }
+        .app-header {
+            background-color: #1a202c; /* Darker blue-gray */
+            color: #ffffff;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            border-bottom-left-radius: 1rem;
+            border-bottom-right-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .header-logo {
+            height: 2.5rem; /* Adjust as needed */
+            width: auto;
+            border-radius: 0.5rem;
+        }
+        .main-nav a {
+            color: #a0aec0; /* Lighter gray for links */
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease-in-out;
+            font-weight: 500;
+        }
+        .main-nav a:hover, .main-nav a.active {
+            background-color: #2d3748; /* Slightly lighter dark */
+            color: #ffffff;
+        }
+        .content-wrapper {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+            display: grid;
+            gap: 2rem;
+        }
+        .welcome-section {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .welcome-section h2 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+        .welcome-section p {
+            color: #4a5568;
+            font-size: 1.125rem;
+        }
+        .summary-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+        .summary-card {
+            background-color: #ffffff;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .summary-card h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .summary-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2d3748;
+        }
+        .total-income i { color: #48bb78; } /* Green */
+        .total-expenses i { color: #f56565; } /* Red */
+        .current-balance i { color: #4299e1; } /* Blue */
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .chart-container {
+            background-color: #ffffff;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .chart-container h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .recent-transactions {
+            background-color: #ffffff;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .recent-transactions h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        .movimentacoes-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 0.75rem; /* Space between rows */
+        }
+        .movimentacoes-table thead th {
+            background-color: #edf2f7; /* Light gray */
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #4a5568;
+            border-radius: 0.5rem;
+        }
+        .movimentacoes-table tbody tr {
+            background-color: #ffffff;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            border-radius: 0.5rem;
+            transition: all 0.2s ease-in-out;
+        }
+        .movimentacoes-table tbody tr:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .movimentacoes-table tbody td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .movimentacoes-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .movimentacoes-table .type-ganho {
+            color: #48bb78; /* Green */
+            font-weight: 600;
+        }
+        .movimentacoes-table .type-gasto {
+            color: #f56565; /* Red */
+            font-weight: 600;
+        }
+        .view-all-link {
+            text-align: center;
+            margin-top: 1.5rem;
+        }
+        .button-link {
+            display: inline-block;
+            background-color: #4299e1; /* Blue */
+            color: #ffffff;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .button-link:hover {
+            background-color: #3182ce; /* Darker blue */
+            transform: translateY(-1px);
+        }
+        .user-id-display {
+            background-color: #e2e8f0;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            color: #4a5568;
+            margin-top: 1rem;
+            text-align: center;
+            word-break: break-all; /* Ensures long IDs wrap */
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .app-header {
+                flex-direction: column;
+                text-align: center;
+            }
+            .main-nav {
+                margin-top: 1rem;
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+            }
+            .main-nav a {
+                width: 100%;
+                text-align: center;
+            }
+            .summary-overview, .charts-section {
+                grid-template-columns: 1fr;
+            }
+            .movimentacoes-table thead {
+                display: none; /* Hide table header on small screens */
+            }
+            .movimentacoes-table tbody, .movimentacoes-table tr, .movimentacoes-table td {
+                display: block;
+                width: 100%;
+            }
+            .movimentacoes-table tr {
+                margin-bottom: 1rem;
+                border: 1px solid #e2e8f0;
+                border-radius: 0.5rem;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+            .movimentacoes-table td {
+                text-align: right;
+                padding-left: 50%;
+                position: relative;
+            }
+            .movimentacoes-table td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 0;
+                width: 50%;
+                padding-left: 1rem;
+                font-weight: 600;
+                text-align: left;
+                color: #4a5568;
+            }
+            .movimentacoes-table tbody td:last-child {
+                border-bottom: none;
+            }
+        }
+    </style>
+</head>
+<body class="tela-inicial-page">
+    <header class="app-header">
+        <div class="header-left">
+            <img src="CSS/anexos/SISCOFI.png" alt="Logotipo do Siscofi" class="header-logo">
+            <h1 class="text-3xl font-bold">Siscofi</h1>
+        </div>
+        <nav class="main-nav">
+            <a href="tela-inicial.html" class="active">Início</a>
+            <a href="movimentacoes.html">Movimentações</a>
+            <a href="metas.html">Metas</a>
+            <a href="relatorios.html">Relatórios</a>
+            <a href="#" id="logoutButton">Sair</a>
+        </nav>
+    </header>
+
+    <main class="content-wrapper">
+        <section class="welcome-section">
+            <h2 id="welcomeMessage">Olá, Usuário!</h2>
+            <p>Seja bem-vindo ao seu painel financeiro. Veja um resumo rápido das suas finanças.</p>
+        </section>
+
+        <section class="summary-overview">
+            <div class="summary-card total-income">
+                <h3><i class="fas fa-arrow-alt-circle-up"></i> Ganhos no Mês</h3>
+                <p id="ganhosMes" class="value">R$ 0,00</p>
+            </div>
+            <div class="summary-card total-expenses">
+                <h3><i class="fas fa-arrow-alt-circle-down"></i> Gastos no Mês</h3>
+                <p id="gastosMes" class="value">R$ 0,00</p>
+            </div>
+            <div class="summary-card current-balance">
+                <h3><i class="fas fa-wallet"></i> Saldo Atual</h3>
+                <p id="saldoAtual" class="value">R$ 0,00</p>
+            </div>
+        </section>
+
+        <section class="charts-section">
+            <div class="chart-container">
+                <h3>Ganhos vs. Gastos (Últimos 6 Meses)</h3>
+                <canvas id="movimentacoesChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Gastos por Categoria (Mês Atual)</h3>
+                <canvas id="gastosCategoriaChart"></canvas>
+            </div>
+        </section>
+
+        <section class="recent-transactions">
+            <h3>Últimas Movimentações</h3>
+            <table class="movimentacoes-table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Tipo</th>
+                        <th>Descrição</th>
+                        <th>Valor</th>
+                        <th>Categoria</th>
+                    </tr>
+                </thead>
+                <tbody id="listaUltimasMovimentacoes">
+                    <tr><td colspan="5" class="text-center py-4 text-gray-500">Carregando movimentações...</td></tr>
+                </tbody>
+            </table>
+            <div class="view-all-link">
+                <a href="movimentacoes.html" class="button-link">Ver todas as movimentações</a>
+            </div>
+
+        </section>
+        <div class="summary-cards">
+    <div class="summary-card" id="cardGanhos">
+        <span class="card-icon"><i class="fas fa-arrow-up"></i></span>
+        <div class="card-content">
+            <p>Ganhos Mês</p>
+            <h3 id="ganhosMes">R$ 0,00</h3>
+            <div class="loading-spinner" id="loadingGanhos"></div>
+            <div class="error-message" id="errorGanhos"></div>
+        </div>
+    </div>
+    <div class="summary-card" id="cardGastos">
+        <span class="card-icon"><i class="fas fa-arrow-down"></i></span>
+        <div class="card-content">
+            <p>Gastos Mês</p>
+            <h3 id="gastosMes">R$ 0,00</h3>
+            <div class="loading-spinner" id="loadingGastos"></div>
+            <div class="error-message" id="errorGastos"></div>
+        </div>
+    </div>
+    <div class="summary-card" id="cardSaldo">
+        <span class="card-icon"><i class="fas fa-wallet"></i></span>
+        <div class="card-content">
+            <p>Saldo Total</p>
+            <h3 id="saldoAtual">R$ 0,00</h3>
+            <div class="loading-spinner" id="loadingSaldo"></div>
+            <div class="error-message" id="errorSaldo"></div>
+        </div>
+    </div>
+</div>
+
+<div class="chart-container">
+    <canvas id="movimentacoesChart"></canvas>
+    <div class="loading-spinner" id="loadingMovimentacoesChart"></div>
+    <div class="error-message" id="errorMovimentacoesChart"></div>
+</div>
+
+<div class="chart-container">
+    <canvas id="gastosCategoriaChart"></canvas>
+    <div class="loading-spinner" id="loadingGastosCategoriaChart"></div>
+    <div class="error-message" id="errorGastosCategoriaChart"></div>
+</div>
+
+<div class="recent-transactions-table">
+    <h4>Últimas Movimentações</h4>
+    <div class="loading-spinner" id="loadingUltimasMovimentacoes"></div>
+    <div class="error-message" id="errorUltimasMovimentacoes"></div>
+    <table id="ultimasMovimentacoesTable">
+        </table>
+</div>
+
+<div id="generalMessage" class="message-container"></div>
+    </main>
+
+    <script type="module">
+        const API_URL = 'http://localhost:3000'; // URL do seu backend Node.js
+
+        function getUserId() {
+            return localStorage.getItem('userId');
+        }
+
+        function getUserName() {
+            return localStorage.getItem('userName');
+        }
+
+        function redirectToLoginIfNotAuthenticated() {
+            if (!getUserId()) {
+                alert('Você precisa estar logado para acessar esta página.');
+                window.location.href = 'index.html'; // Redireciona para a página de login (index.html)
+            }
+        }
+
+        redirectToLoginIfNotAuthenticated();
+
+        // Atualizar mensagem de boas-vindas
+        document.getElementById('welcomeMessage').textContent = `Olá, ${getUserName() || 'Usuário'}!`;
+
+        const ganhosMesElement = document.getElementById('ganhosMes');
+        const gastosMesElement = document.getElementById('gastosMes');
+        const saldoAtualElement = document.getElementById('saldoAtual');
+        const listaUltimasMovimentacoes = document.getElementById('listaUltimasMovimentacoes');
+        const logoutButton = document.getElementById('logoutButton');
+
+        let movimentacoesChartInstance;
+        let gastosCategoriaChartInstance;
+
+        // Função para formatar moeda
+        const formatCurrency = (value) => {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(value);
+        };
+
+        // Função para carregar dados do resumo financeiro
+        async function fetchResumoFinanceiro() {
+            const userId = getUserId();
+            if (!userId) return;
+
+            try {
+                const response = await fetch(`${API_URL}/api/dashboard/resumo?userId=${userId}`);
+                if (!response.ok) throw new Error('Erro ao buscar resumo financeiro');
+                const data = await response.json();
+
+                ganhosMesElement.textContent = formatCurrency(data.ganhosMes);
+                gastosMesElement.textContent = formatCurrency(data.gastosMes);
+                saldoAtualElement.textContent = formatCurrency(data.saldoAtual);
+
+                // Aplica cor ao saldo
+                if (data.saldoAtual < 0) {
+                    saldoAtualElement.classList.remove('text-primary');
+                    saldoAtualElement.classList.add('text-danger'); // Vermelho
+                } else {
+                    saldoAtualElement.classList.remove('text-danger');
+                    saldoAtualElement.classList.add('text-primary'); // Azul
+                }
+
+            } catch (error) {
+                console.error('Erro ao carregar resumo financeiro:', error);
+                ganhosMesElement.textContent = 'Erro';
+                gastosMesElement.textContent = 'Erro';
+                saldoAtualElement.textContent = 'Erro';
+            }
+        }
+
+        // Função para carregar e renderizar últimas movimentações
+        async function fetchUltimasMovimentacoes() {
+            const userId = getUserId();
+            if (!userId) return;
+
+            try {
+                const response = await fetch(`${API_URL}/api/dashboard/ultimas-movimentacoes?userId=${userId}`);
+                if (!response.ok) throw new Error('Erro ao buscar últimas movimentações');
+                const movimentacoes = await response.json();
+                
+                listaUltimasMovimentacoes.innerHTML = ''; // Limpa a lista antes de preencher
+
+                if (movimentacoes.length === 0) {
+                    listaUltimasMovimentacoes.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">Nenhuma movimentação recente.</td></tr>`;
+                    return;
+                }
+
+                movimentacoes.forEach(mov => {
+                    const row = document.createElement('tr');
+                    const tipoClass = mov.tipo === 'ganho' ? 'type-ganho' : 'type-gasto';
+                    const dataFormatada = new Date(mov.data).toLocaleDateString('pt-BR');
+
+                    row.innerHTML = `
+                        <td data-label="Data" class="py-3 px-4">${dataFormatada}</td>
+                        <td data-label="Tipo" class="py-3 px-4 capitalize ${tipoClass}">${mov.tipo}</td>
+                        <td data-label="Descrição" class="py-3 px-4">${mov.descricao}</td>
+                        <td data-label="Valor" class="py-3 px-4 ${tipoClass}">${formatCurrency(mov.valor)}</td>
+                        <td data-label="Categoria" class="py-3 px-4 capitalize">${mov.categoria || '-'}</td>
+                    `;
+                    listaUltimasMovimentacoes.appendChild(row);
+                });
+
+            } catch (error) {
+                console.error('Erro ao carregar últimas movimentações:', error);
+                listaUltimasMovimentacoes.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">Erro ao carregar movimentações.</td></tr>`;
+            }
+        }
+
+        // Função para carregar dados para o gráfico de histórico de movimentações (linha)
+        async function fetchHistoricoMovimentacoes() {
+            const userId = getUserId();
+            if (!userId) return;
+
+            try {
+                const response = await fetch(`${API_URL}/api/dashboard/historico-movimentacoes?userId=${userId}`);
+                if (!response.ok) throw new Error('Erro ao buscar histórico de movimentações');
+                const data = await response.json();
+
+                // Formata os rótulos do mês
+                const labels = data.map(item => {
+                    const [year, month] = item.month.split('-');
+                    return new Date(year, month - 1).toLocaleString('pt-BR', { month: 'short', year: '2-digit' });
+                });
+                const incomes = data.map(item => item.income);
+                const expenses = data.map(item => item.expense);
+
+                renderMovimentacoesChart(labels, incomes, expenses);
+            } catch (error) {
+                console.error('Erro ao carregar histórico de movimentações:', error);
+            }
+        }
+
+        // Função para renderizar o gráfico de histórico de movimentações
+        function renderMovimentacoesChart(labels, incomes, expenses) {
+            const ctx = document.getElementById('movimentacoesChart').getContext('2d');
+            if (movimentacoesChartInstance) {
+                movimentacoesChartInstance.destroy(); // Destroi a instância anterior se existir
+            }
+            movimentacoesChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Ganhos',
+                        data: incomes,
+                        borderColor: '#48bb78', // Verde
+                        backgroundColor: 'rgba(72, 187, 120, 0.2)',
+                        fill: true,
+                        tension: 0.3
+                    }, {
+                        label: 'Gastos',
+                        data: expenses,
+                        borderColor: '#f56565', // Vermelho
+                        backgroundColor: 'rgba(245, 101, 101, 0.2)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return formatCurrency(value);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + formatCurrency(context.raw);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Função para carregar dados para o gráfico de gastos por categoria (pizza)
+        async function fetchGastosPorCategoria() {
+            const userId = getUserId();
+            if (!userId) return;
+
+            try {
+                const response = await fetch(`${API_URL}/api/dashboard/gastos-por-categoria?userId=${userId}`);
+                if (!response.ok) throw new Error('Erro ao buscar gastos por categoria');
+                const data = await response.json();
+
+                const labels = Object.keys(data);
+                const values = Object.values(data);
+
+                renderGastosCategoriaChart(labels, values);
+            } catch (error) {
+                console.error('Erro ao carregar gastos por categoria:', error);
+            }
+        }
+
+        // Função para renderizar o gráfico de gastos por categoria
+        function renderGastosCategoriaChart(labels, values) {
+            const ctx = document.getElementById('gastosCategoriaChart').getContext('2d');
+            if (gastosCategoriaChartInstance) {
+                gastosCategoriaChartInstance.destroy(); // Destroi a instância anterior se existir
+            }
+            gastosCategoriaChartInstance = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: [
+                            '#4299e1', '#f6ad55', '#48bb78', '#ed8936', '#a0aec0', '#ecc94b', '#9f7aea', '#ed64a6', '#63b3ed', '#f56565'
+                        ],
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    return label + formatCurrency(context.raw);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Logout
+        logoutButton.addEventListener('click', () => {
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userName');
+            alert('Você foi desconectado.');
+            window.location.href = 'index.html'; // Redireciona para a página de login
+        });
+
+        // Carregar todos os dados do dashboard ao carregar a página
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchResumoFinanceiro();
+            fetchUltimasMovimentacoes();
+            fetchHistoricoMovimentacoes();
+            fetchGastosPorCategoria();
+        });
+    </script>
+</body>
+</html>
