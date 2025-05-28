@@ -5,362 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Siscofi - Relatórios</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        primary: '#4299e1', // Azul Siscofi
-                        secondary: '#2d3748', // Azul escuro para texto
-                        accent: '#48bb78', // Verde para sucesso
-                        danger: '#f56565', // Vermelho para erro
-                        background: '#f0f2f5', // Fundo claro
-                        card: '#ffffff', // Cor dos cards/formulários
-                    }
-                }
-            }
-        }
-    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body {
-            background-color: #f0f2f5;
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-        .header {
-            background-color: #2d3748;
-            color: #ffffff;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .header .logo {
-            height: 3rem;
-            filter: brightness(0) invert(1);
-        }
-        .header nav ul {
-            display: flex;
-            gap: 1.5rem;
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-        .header nav a {
-            color: #ffffff;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.2s ease-in-out;
-        }
-        .header nav a:hover {
-            color: #4299e1;
-        }
-        .header .user-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .header .user-info span {
-            font-weight: 600;
-        }
-        .header .btn-logout {
-            background-color: #f56565;
-            color: #ffffff;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            text-decoration: none;
-            transition: background-color 0.2s ease-in-out;
-        }
-        .header .btn-logout:hover {
-            background-color: #e53e3e;
-        }
-        .main-content {
-            flex-grow: 1;
-            padding: 2rem;
-            background-color: #f0f2f5;
-        }
-        .card {
-            background-color: #ffffff;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            margin-bottom: 1.5rem;
-        }
-        .card h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #2d3748;
-            margin-bottom: 1.5rem;
-        }
-        .report-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-        }
-        .chart-container {
-            position: relative;
-            height: 300px; /* Altura fixa para os gráficos */
-            width: 100%;
-        }
-    </style>
+    <link rel="stylesheet" href="CSS/Style.css">
 </head>
-<body>
-    <header class="header">
-        <img src="CSS/anexos/SISCOFI.png" alt="Logotipo do Siscofi" class="logo">
-        <nav>
-            <ul>
-                <li><a href="tela-inicial.html">Início</a></li>
-                <li><a href="movimentacoes.html">Movimentações</a></li>
-                <li><a href="metas.html">Metas</a></li>
-                <li><a href="relatorios.html">Relatórios</a></li>
-            </ul>
-        </nav>
-        <div class="user-info">
-            Olá, <span id="userNameDisplay">Usuário</span>!
-            <a href="#" id="logoutButton" class="btn-logout">Sair</a>
+<body class="app-page">
+    <header class="app-header">
+        <div class="header-left">
+            <img src="CSS/anexos/SISCOFI.png" alt="Logotipo do Siscofi" class="header-logo">
         </div>
+        <nav class="main-nav">
+            <a href="tela-inicial.html">Início</a>
+            <a href="movimentacoes.html">Movimentações</a>
+            <a href="metas.html">Metas</a>
+            <a href="relatorios.html" class="active">Relatórios</a>
+            <a href="#" id="logoutButton" class="btn btn-logout">Sair</a>
+        </nav>
     </header>
 
     <main class="main-content">
         <div class="card">
-            <h2>Relatórios Financeiros</h2>
-            
-            <div class="report-grid">
+            <h2 class="card-title">Relatórios Financeiros</h2>
+            <div class="charts-section">
                 <div class="card">
                     <h3>Resumo Financeiro</h3>
-                    <p>Total de Receitas: <span class="text-accent font-semibold" id="totalReceitas">R$ 0,00</span></p>
-                    <p>Total de Despesas: <span class="text-danger font-semibold" id="totalDespesas">R$ 0,00</span></p>
-                    <p>Saldo Atual: <span class="text-primary font-semibold" id="saldoRelatorio">R$ 0,00</span></p>
+                    <p>Total de Receitas: <span class="type-ganho" id="totalReceitas">R$ 0,00</span></p>
+                    <p>Total de Despesas: <span class="type-gasto" id="totalDespesas">R$ 0,00</span></p>
+                    <p>Saldo Atual: <span id="saldoRelatorio">R$ 0,00</span></p>
                 </div>
                 
-                <div class="card">
+                <div class="chart-container">
                     <h3>Distribuição de Despesas</h3>
-                    <div class="chart-container">
-                        <canvas id="despesasChart"></canvas>
-                    </div>
+                    <canvas id="despesasChart"></canvas>
                 </div>
 
-                <div class="card">
+                <div class="chart-container">
                     <h3>Receitas vs Despesas (Mensal)</h3>
-                    <div class="chart-container">
-                        <canvas id="receitasDespesasChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <h3>Maiores Despesas</h3>
-                    <ul id="topDespesasList" class="list-disc pl-5 mt-2">
-                        <li>Carregando...</li>
-                    </ul>
+                    <canvas id="receitasDespesasChart"></canvas>
                 </div>
             </div>
         </div>
-        <div id="generalMessage" class="message-container"></div>
-
-<div class="filter-section">
-    <label for="startDate">Data Início:</label>
-    <input type="date" id="startDate">
-    <label for="endDate">Data Fim:</label>
-    <input type="date" id="endDate">
-    <button id="applyFilterBtn" class="btn btn-primary">Aplicar Filtro</button>
-</div>
-
-<div class="summary-cards">
-    <div class="summary-card" id="cardReceitasRelatorio">
-        <span class="card-icon"><i class="fas fa-money-check-alt"></i></span>
-        <div class="card-content">
-            <p>Total Receitas</p>
-            <h3 id="totalReceitasRelatorio">R$ 0,00</h3>
-            <div class="loading-spinner" id="loadingReceitasRelatorio"></div>
-            <div class="error-message" id="errorReceitasRelatorio"></div>
-        </div>
-    </div>
-    <div class="summary-card" id="cardDespesasRelatorio">
-        <span class="card-icon"><i class="fas fa-shopping-basket"></i></span>
-        <div class="card-content">
-            <p>Total Despesas</p>
-            <h3 id="totalDespesasRelatorio">R$ 0,00</h3>
-            <div class="loading-spinner" id="loadingDespesasRelatorio"></div>
-            <div class="error-message" id="errorDespesasRelatorio"></div>
-        </div>
-    </div>
-    <div class="summary-card" id="cardSaldoRelatorio">
-        <span class="card-icon"><i class="fas fa-piggy-bank"></i></span>
-        <div class="card-content">
-            <p>Saldo do Período</p>
-            <h3 id="saldoRelatorio">R$ 0,00</h3>
-            <div class="loading-spinner" id="loadingSaldoRelatorio"></div>
-            <div class="error-message" id="errorSaldoRelatorio"></div>
-        </div>
-    </div>
-</div>
-
-<div class="chart-container">
-    <canvas id="expensesByCategoryChart"></canvas>
-    <div class="loading-spinner" id="loadingExpensesByCategoryChart"></div>
-    <div class="error-message" id="errorExpensesByCategoryChart"></div>
-</div>
-
-<div class="chart-container">
-    <canvas id="monthlyComparisonChart"></canvas>
-    <div class="loading-spinner" id="loadingMonthlyComparisonChart"></div>
-    <div class="error-message" id="errorMonthlyComparisonChart"></div>
-</div>
-
-<div class="recent-transactions-table">
-    <h4>Maiores Despesas do Período</h4>
-    <div class="loading-spinner" id="loadingTopExpenses"></div>
-    <div class="error-message" id="errorTopExpenses"></div>
-    <table id="topExpensesTable">
-        <thead>
-            <tr>
-                <th>Descrição</th>
-                <th>Total Gasto</th>
-            </tr>
-        </thead>
-        <tbody>
-            </tbody>
-    </table>
-</div>
     </main>
 
-    <script type="module">
-        const API_URL = 'http://localhost:3000';
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            const userId = localStorage.getItem('userId');
-            const userName = localStorage.getItem('userName');
-            const logoutButton = document.getElementById('logoutButton');
-            const userNameDisplay = document.getElementById('userNameDisplay');
-            
-            const totalReceitasSpan = document.getElementById('totalReceitas');
-            const totalDespesasSpan = document.getElementById('totalDespesas');
-            const saldoRelatorioSpan = document.getElementById('saldoRelatorio');
-            const topDespesasList = document.getElementById('topDespesasList');
-
-            if (!userId) {
-                window.location.href = 'index.html';
-                return;
-            }
-
-            if (userName) {
-                userNameDisplay.textContent = userName;
-            }
-
-            logoutButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                localStorage.removeItem('userId');
-                localStorage.removeItem('userName');
-                alert('Você foi desconectado.');
-                window.location.href = 'index.html';
-            });
-
-            // Função para carregar dados do relatório
-            async function loadRelatorioData() {
-                try {
-                    const response = await fetch(`${API_URL}/api/relatorios?userId=${userId}`);
-                    const data = await response.json();
-
-                    // Atualiza o resumo financeiro
-                    totalReceitasSpan.textContent = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.totalReceitas);
-                    totalDespesasSpan.textContent = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.totalDespesas);
-                    saldoRelatorioSpan.textContent = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.saldo);
-
-                    // Preenche a lista de maiores despesas
-                    topDespesasList.innerHTML = '';
-                    if (data.topDespesas && data.topDespesas.length > 0) {
-                        data.topDespesas.forEach(item => {
-                            const li = document.createElement('li');
-                            li.textContent = item;
-                            topDespesasList.appendChild(li);
-                        });
-                    } else {
-                        topDespesasList.innerHTML = '<li>Nenhuma despesa para mostrar.</li>';
-                    }
-
-                    // Gráfico de Distribuição de Despesas (Doughnut Chart)
-                    const ctxDespesas = document.getElementById('despesasChart').getContext('2d');
-                    new Chart(ctxDespesas, {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['Aluguel', 'Supermercado', 'Transporte', 'Lazer', 'Outros'],
-                            datasets: [{
-                                data: [1200, 450, 200, 150, 300], // Dados de exemplo
-                                backgroundColor: ['#f56565', '#ed8936', '#ecc94b', '#48bb78', '#4299e1'],
-                                hoverOffset: 4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    position: 'top',
-                                },
-                                title: {
-                                    display: true,
-                                    text: 'Despesas por Categoria'
-                                }
-                            }
-                        }
-                    });
-
-                    // Gráfico de Receitas vs Despesas (Bar Chart)
-                    const ctxReceitasDespesas = document.getElementById('receitasDespesasChart').getContext('2d');
-                    new Chart(ctxReceitasDespesas, {
-                        type: 'bar',
-                        data: {
-                            labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai'], // Meses
-                            datasets: [
-                                {
-                                    label: 'Receitas',
-                                    data: [2500, 2800, 3000, 2700, 3000], // Dados de exemplo
-                                    backgroundColor: '#48bb78', // Verde
-                                },
-                                {
-                                    label: 'Despesas',
-                                    data: [1800, 2100, 1650, 1900, 1650], // Dados de exemplo
-                                    backgroundColor: '#f56565', // Vermelho
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    position: 'top',
-                                },
-                                title: {
-                                    display: true,
-                                    text: 'Receitas vs Despesas Mensais'
-                                }
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true
-                                }
-                            }
-                        }
-                    });
-
-                } catch (error) {
-                    console.error('Erro ao carregar dados do relatório:', error);
-                    alert('Erro ao carregar relatórios. Tente novamente mais tarde.');
-                }
-            }
-
-            loadRelatorioData(); // Carrega os dados do relatório ao carregar a página
-        });
-    </script>
+    <script type="module" src="js/auth.js"></script>
+    <script type="module" src="js/relatorio.js"></script>
 </body>
 </html>

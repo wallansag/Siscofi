@@ -5,139 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Siscofi - Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        primary: '#4299e1', // Azul Siscofi
-                        secondary: '#2d3748', // Azul escuro para texto
-                        accent: '#48bb78', // Verde para sucesso
-                        danger: '#f56565', // Vermelho para erro
-                        background: '#f0f2f5', // Fundo claro
-                        card: '#ffffff', // Cor dos cards/formulários
-                    }
-                }
-            }
-        }
-    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        body {
-            background-color: #f0f2f5;
-            font-family: 'Inter', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 1.5rem;
-            background-image: linear-gradient(to right, rgb(92, 97, 97), rgb(197, 218, 228)); /* Fundo gradiente */
-        }
-        .login-container {
-            background-color: #ffffff;
-            padding: 2.5rem;
-            border-radius: 1rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 450px;
-            text-align: center;
-        }
-        .login-logo {
-            height: 4rem; /* Tamanho do logo */
-            width: auto;
-            margin: 0 auto 1.5rem; /* Centraliza e adiciona espaço abaixo */
-            border-radius: 0.5rem;
-        }
-        .login-container h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #2d3748;
-            margin-bottom: 0.75rem;
-        }
-        .login-container p {
-            color: #4a5568;
-            margin-bottom: 1.5rem;
-        }
-        .form-group {
-            margin-bottom: 1rem;
-            text-align: left;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: #4a5568;
-        }
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #cbd5e0;
-            border-radius: 0.5rem;
-            font-size: 1rem;
-            color: #2d3748;
-            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-        .form-group input:focus, .form-group select:focus {
-            outline: none;
-            border-color: #4299e1;
-            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
-        }
-        .btn-primary {
-            width: 100%;
-            padding: 0.75rem 1.5rem;
-            background-color: #4299e1; /* Azul */
-            color: #ffffff;
-            border: none;
-            border-radius: 0.75rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-top: 1.5rem;
-        }
-        .btn-primary:hover {
-            background-color: #3182ce; /* Azul mais escuro */
-            transform: translateY(-1px);
-        }
-        .link-text {
-            margin-top: 1rem;
-            color: #4a5568;
-        }
-        .link-text a {
-            color: #4299e1;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.2s ease-in-out;
-        }
-        .link-text a:hover {
-            color: #3182ce;
-            text-decoration: underline;
-        }
-        /* Estilos para o formulário de cadastro dentro do mesmo container */
-        #registerContainer .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-        }
-        #registerContainer .button-group {
-            grid-column: 1 / -1; /* Ocupa todas as colunas */
-            display: flex;
-            justify-content: center;
-            margin-top: 1.5rem;
-        }
-        #registerContainer .btn-primary {
-            width: auto; /* Permite que o botão se ajuste ao conteúdo */
-            padding: 0.75rem 2rem;
-        }
-    </style>
+    <link rel="stylesheet" href="CSS/Style.css">
 </head>
-<body class="centered-page">
+<body class="auth-page">
+
     <div class="login-container" id="loginContainer">
-        <img src="CSS/anexos/SISCOFI.png" alt="Logotipo do Siscofi" class="login-logo">
+        <img src="CSS/anexos/SISCOFI.png" alt="Logotipo do Siscofi" class="logo">
         <h2>Bem-vindo de volta!</h2>
         <p>Faça login para gerenciar suas finanças.</p>
         
@@ -150,7 +24,7 @@
                 <label for="senhaLogin">Senha:</label>
                 <input type="password" id="senhaLogin" placeholder="Sua senha" required>
             </div>
-            <button type="submit" class="btn-primary">Entrar</button>
+            <button type="submit" class="btn btn-primary">Entrar</button>
         </form>
         
         <p class="link-text">Esqueceu sua senha? <a href="recuperar-senha.html">Clique aqui</a></p>
@@ -158,7 +32,7 @@
     </div>
 
     <div class="login-container hidden" id="registerContainer">
-        <img src="CSS/anexos/SISCOFI.png" alt="Logotipo do Siscofi" class="login-logo">
+        <img src="CSS/anexos/SISCOFI.png" alt="Logotipo do Siscofi" class="logo">
         <h2>Crie sua conta</h2>
         <p>Preencha os campos abaixo para se cadastrar.</p>
         
@@ -178,7 +52,7 @@
                 </div>
                 <div class="form-group">
                     <label for="telefone">Telefone:</label>
-                    <input type="tel" id="telefone" placeholder="(XX) XXXXX-XXXX" required pattern="(\(?\d{2}\)?\s?)(\d{4,5}-?\d{4})">
+                    <input type="tel" id="telefone" placeholder="(XX) XXXXX-XXXX" required>
                 </div>
                 <div class="form-group">
                     <label for="genero">Gênero:</label>
@@ -203,120 +77,12 @@
                 </div>
             </div>
             <div class="button-group">
-                <button type="submit" class="btn-primary">Cadastrar</button>
+                <button type="submit" class="btn btn-primary">Cadastrar</button>
             </div>
         </form>
         <p class="link-text">Já tem uma conta? <a href="#" id="showLogin">Entrar</a></p>
     </div>
 
-    <script type="module">
-        const API_URL = 'http://localhost:3000'; // URL do seu backend Node.js
-
-        const loginForm = document.getElementById('loginForm');
-        const registerForm = document.getElementById('registerForm');
-        const showRegisterButton = document.getElementById('showRegister');
-        const showLoginButton = document.getElementById('showLogin');
-        const loginContainer = document.getElementById('loginContainer');
-        const registerContainer = document.getElementById('registerContainer');
-
-        // Função para alternar entre login e cadastro
-        showRegisterButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            loginContainer.classList.add('hidden');
-            registerContainer.classList.remove('hidden');
-        });
-
-        showLoginButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            registerContainer.classList.add('hidden');
-            loginContainer.classList.remove('hidden');
-        });
-
-        // Event listener para o formulário de Login
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const cpf = document.getElementById('cpfLogin').value;
-            const senha = document.getElementById('senhaLogin').value;
-
-            try {
-                const response = await fetch(`${API_URL}/login`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ cpf, senha })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    alert(data.message);
-                    // Armazena o userId e userName no localStorage para uso em outras páginas
-                    localStorage.setItem('userId', data.userId);
-                    localStorage.setItem('userName', data.userName); // Armazena o nome do usuário
-                    window.location.href = 'tela-inicial.html'; // Redireciona para a tela inicial
-                } else {
-                    alert(data.message);
-                }
-            } catch (error) {
-                console.error('Erro na requisição de login:', error);
-                alert('Erro ao tentar fazer login. Tente novamente mais tarde.');
-            }
-        });
-
-        // Event listener para o formulário de Cadastro
-        registerForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const nome = document.getElementById('nome').value;
-            const cpf = document.getElementById('cpf').value;
-            const email = document.getElementById('email').value;
-            const telefone = document.getElementById('telefone').value;
-            const genero = document.getElementById('genero').value;
-            const data_nascimento = document.getElementById('data_nascimento').value;
-            const senha = document.getElementById('senha').value;
-            const confirmar_senha = document.getElementById('confirmar_senha').value;
-
-            if (senha !== confirmar_senha) {
-                alert('As senhas não coincidem!');
-                return;
-            }
-            if (senha.length < 6) {
-                alert('A senha deve ter no mínimo 6 caracteres.');
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_URL}/cadastrar-usuario`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        nome,
-                        cpf,
-                        email,
-                        telefone,
-                        genero,
-                        data_nascimento,
-                        senha
-                    })
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    alert(data.message);
-                    registerForm.reset(); // Limpa o formulário após o cadastro
-                    showLoginButton.click(); // Volta para a tela de login
-                } else {
-                    alert(data.message);
-                }
-            } catch (error) {
-                console.error('Erro na requisição de cadastro:', error);
-                alert('Erro ao tentar cadastrar. Tente novamente mais tarde.');
-            }
-        });
-    </script>
+    <script type="module" src="js/login.js"></script>
 </body>
 </html>

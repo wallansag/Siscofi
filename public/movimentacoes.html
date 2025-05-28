@@ -5,269 +5,106 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Siscofi - Movimentações</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        primary: '#4299e1', // Azul Siscofi
-                        secondary: '#2d3748', // Azul escuro para texto
-                        accent: '#48bb78', // Verde para sucesso
-                        danger: '#f56565', // Vermelho para erro
-                        background: '#f0f2f5', // Fundo claro
-                        card: '#ffffff', // Cor dos cards/formulários
-                    }
-                }
-            }
-        }
-    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        body {
-            background-color: #f0f2f5;
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-        .header {
-            background-color: #2d3748;
-            color: #ffffff;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .header .logo {
-            height: 3rem;
-            filter: brightness(0) invert(1);
-        }
-        .header nav ul {
-            display: flex;
-            gap: 1.5rem;
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-        .header nav a {
-            color: #ffffff;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.2s ease-in-out;
-        }
-        .header nav a:hover {
-            color: #4299e1;
-        }
-        .header .user-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .header .user-info span {
-            font-weight: 600;
-        }
-        .header .btn-logout {
-            background-color: #f56565;
-            color: #ffffff;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            text-decoration: none;
-            transition: background-color 0.2s ease-in-out;
-        }
-        .header .btn-logout:hover {
-            background-color: #e53e3e;
-        }
-        .main-content {
-            flex-grow: 1;
-            padding: 2rem;
-            background-color: #f0f2f5;
-        }
-        .card {
-            background-color: #ffffff;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            margin-bottom: 1.5rem;
-        }
-        .card h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #2d3748;
-            margin-bottom: 1.5rem;
-        }
-        .table-container {
-            overflow-x: auto;
-        }
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-        }
-        .table th, .table td {
-            padding: 0.75rem;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        .table th {
-            background-color: #f8fafc;
-            color: #4a5568;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.875rem;
-        }
-        .table tr:hover {
-            background-color: #f0f2f5;
-        }
-        .table .income {
-            color: #48bb78; /* Verde */
-            font-weight: 600;
-        }
-        .table .expense {
-            color: #f56565; /* Vermelho */
-            font-weight: 600;
-        }
-        .btn-add {
-            background-color: #48bb78; /* Verde */
-            color: #ffffff;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.75rem;
-            text-decoration: none;
-            font-weight: 600;
-            transition: background-color 0.2s ease-in-out;
-            margin-bottom: 1rem;
-            display: inline-block;
-        }
-        .btn-add:hover {
-            background-color: #38a169;
-        }
-    </style>
+    <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-    <header class="header">
-        <img src="CSS/anexos/SISCOFI.png" alt="Logotipo do Siscofi" class="logo">
-        <nav>
-            <ul>
-                <li><a href="tela-inicial.html">Início</a></li>
-                <li><a href="movimentacoes.html">Movimentações</a></li>
-                <li><a href="metas.html">Metas</a></li>
-                <li><a href="relatorios.html">Relatórios</a></li>
-            </ul>
-        </nav>
-        <div class="user-info">
-            Olá, <span id="userNameDisplay">Usuário</span>!
-            <a href="#" id="logoutButton" class="btn-logout">Sair</a>
+<body class="app-page">
+    <header class="app-header">
+        <div class="header-left">
+            <img src="images/SISCOFI.png" alt="Logotipo do Siscofi" class="header-logo">
         </div>
+        <nav class="main-nav">
+            <a href="tela-inicial.html">Início</a>
+            <a href="movimentacoes.html" class="active">Movimentações</a>
+            <a href="metas.html">Metas</a>
+            <a href="relatorios.html">Relatórios</a>
+            <a href="#" id="logoutButton" class="btn btn-logout">Sair</a>
+        </nav>
     </header>
 
     <main class="main-content">
         <div class="card">
-            <h2>Minhas Movimentações</h2>
-            <button class="btn-add">Adicionar Nova Movimentação</button> <div class="table-container">
-                <table class="table">
+            <div class="card-header">
+                <h2 class="card-title">Minhas Movimentações</h2>
+                <button id="openAddMovimentacaoModalBtn" class="btn btn-add">
+                    <i class="fas fa-plus"></i> Adicionar Nova Registro
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="app-table">
                     <thead>
                         <tr>
                             <th>Data</th>
                             <th>Descrição</th>
                             <th>Tipo</th>
                             <th>Valor</th>
+                            <th>Categoria</th>
+                            <th>Recorrência</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody id="movimentacoesTableBody">
                         <tr>
-                            <td colspan="5" class="text-center py-4">Nenhuma movimentação encontrada.</td>
+                            <td colspan="7" style="text-align: center; padding: 1rem;">Carregando movimentações...</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
-        <div id="generalMessage" class="message-container"></div>
-
-<form id="movimentacaoForm">
-    <button type="submit" class="btn btn-primary" id="saveMovimentacaoBtn">Salvar Movimentação</button>
-    <div class="loading-spinner" id="formLoadingSpinner"></div>
-    <div class="error-message" id="formErrorMessage"></div>
-</form>
-
-<div class="table-container">
-    <div class="loading-spinner" id="tableLoadingSpinner"></div>
-    <div class="error-message" id="tableErrorMessage"></div>
-    <table id="movimentacoesTable">
-        </table>
-</div>
     </main>
 
-    <script type="module">
-        const API_URL = 'http://localhost:3000';
+    <div id="movimentacaoModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 id="movimentacaoModalTitle">Adicionar Registro</h3>
+            <form id="movimentacaoForm">
+                <input type="hidden" id="movimentacaoId">
+                
+                <div class="form-group">
+                    <label for="movDescricao">Descrição</label>
+                    <input type="text" id="movDescricao" placeholder="Ex: Salário, Conta de Luz" required>
+                </div>
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            const userId = localStorage.getItem('userId');
-            const userName = localStorage.getItem('userName');
-            const logoutButton = document.getElementById('logoutButton');
-            const userNameDisplay = document.getElementById('userNameDisplay');
-            const movimentacoesTableBody = document.getElementById('movimentacoesTableBody');
+                <div class="form-group">
+                    <label for="movValor">Valor</label>
+                    <input type="number" id="movValor" placeholder="150.00" step="0.01" required>
+                </div>
 
-            if (!userId) {
-                window.location.href = 'index.html';
-                return;
-            }
+                <div class="form-group">
+                    <label for="movData">Data</label>
+                    <input type="date" id="movData" required>
+                </div>
 
-            if (userName) {
-                userNameDisplay.textContent = userName;
-            }
+                <div class="form-group">
+                    <label for="movTipo">Tipo</label>
+                    <select id="movTipo" required>
+                        <option value="ganho">Ganho</option>
+                        <option value="gasto">Gasto</option>
+                    </select>
+                </div>
 
-            logoutButton.addEventListener('click', (e) => {
-                e.preventDefault();
-                localStorage.removeItem('userId');
-                localStorage.removeItem('userName');
-                alert('Você foi desconectado.');
-                window.location.href = 'index.html';
-            });
+                <div class="form-group">
+                    <label for="movCategoria">Categoria (Opcional)</label>
+                    <input type="text" id="movCategoria" placeholder="Ex: Moradia, Alimentação, Lazer">
+                </div>
 
-            // Função para carregar movimentações
-            async function loadMovimentacoes() {
-                try {
-                    const response = await fetch(`${API_URL}/api/movimentacoes?userId=${userId}`); // Adiciona userId para filtrar
-                    const movimentacoes = await response.json();
+                <div class="form-group">
+                    <label for="movTipoRecorrencia">Recorrência</label>
+                    <select id="movTipoRecorrencia" required>
+                        <option value="UNICO">Único</option>
+                        <option value="RECORRENTE">Recorrente</option>
+                        <option value="PRIORITARIO">Prioritário</option>
+                    </select>
+                </div>
 
-                    movimentacoesTableBody.innerHTML = ''; // Limpa a tabela
+                <div class="modal-actions">
+                    <button type="button" id="cancelMovimentacaoBtn" class="btn btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-                    if (movimentacoes.length === 0) {
-                        movimentacoesTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4">Nenhuma movimentação encontrada.</td></tr>`;
-                        return;
-                    }
-
-                    movimentacoes.forEach(mov => {
-                        const row = document.createElement('tr');
-                        const valueClass = mov.tipo === 'receita' ? 'income' : 'expense';
-                        const valorFormatado = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(mov.valor);
-
-                        row.innerHTML = `
-                            <td>${mov.data}</td>
-                            <td>${mov.descricao}</td>
-                            <td>${mov.tipo === 'receita' ? 'Receita' : 'Despesa'}</td>
-                            <td class="${valueClass}">${valorFormatado}</td>
-                            <td>
-                                <button class="text-blue-500 hover:text-blue-700 mr-2"><i class="fas fa-edit"></i></button>
-                                <button class="text-red-500 hover:text-red-700"><i class="fas fa-trash-alt"></i></button>
-                            </td>
-                        `;
-                        movimentacoesTableBody.appendChild(row);
-                    });
-
-                } catch (error) {
-                    console.error('Erro ao carregar movimentações:', error);
-                    movimentacoesTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">Erro ao carregar movimentações.</td></tr>`;
-                }
-            }
-
-            loadMovimentacoes(); // Carrega as movimentações ao carregar a página
-        });
-    </script>
+    <script type="module" src="js/auth.js"></script>
+    <script type="module" src="js/movimentacoes.js"></script>
 </body>
 </html>

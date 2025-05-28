@@ -5,122 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Siscofi - Recuperar Senha</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        primary: '#4299e1', // Azul Siscofi
-                        secondary: '#2d3748', // Azul escuro para texto
-                        accent: '#48bb78', // Verde para sucesso
-                        danger: '#f56565', // Vermelho para erro
-                        background: '#f0f2f5', // Fundo claro
-                        card: '#ffffff', // Cor dos cards/formulários
-                    }
-                }
-            }
-        }
-    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        body {
-            background-color: #f0f2f5;
-            font-family: 'Inter', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 1.5rem;
-            background-image: linear-gradient(to right, rgb(92, 97, 97), rgb(197, 218, 228)); /* Fundo gradiente */
-        }
-        .container {
-            background-color: #ffffff;
-            padding: 2.5rem;
-            border-radius: 1rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 450px;
-            text-align: center;
-        }
-        .logo {
-            height: 4rem;
-            width: auto;
-            margin: 0 auto 1.5rem;
-            border-radius: 0.5rem;
-        }
-        .container h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #2d3748;
-            margin-bottom: 0.75rem;
-        }
-        .container p {
-            color: #4a5568;
-            margin-bottom: 1.5rem;
-        }
-        .form-group {
-            margin-bottom: 1rem;
-            text-align: left;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: #4a5568;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #cbd5e0;
-            border-radius: 0.5rem;
-            font-size: 1rem;
-            color: #2d3748;
-            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-        .form-group input:focus {
-            outline: none;
-            border-color: #4299e1;
-            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
-        }
-        .btn-primary {
-            width: 100%;
-            padding: 0.75rem 1.5rem;
-            background-color: #4299e1; /* Azul */
-            color: #ffffff;
-            border: none;
-            border-radius: 0.75rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-top: 1.5rem;
-        }
-        .btn-primary:hover {
-            background-color: #3182ce; /* Azul mais escuro */
-            transform: translateY(-1px);
-        }
-        .link-text {
-            margin-top: 1rem;
-            color: #4a5568;
-        }
-        .link-text a {
-            color: #4299e1;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.2s ease-in-out;
-        }
-        .link-text a:hover {
-            color: #3182ce;
-            text-decoration: underline;
-        }
-    </style>
+    <link rel="stylesheet" href="CSS/Style.css">
 </head>
-<body>
-    <div class="container">
+<body class="auth-page">
+    <div class="login-container">
         <img src="CSS/anexos/SISCOFI.png" alt="Logotipo do Siscofi" class="logo">
         <h2>Recuperar Senha</h2>
         <p>Informe seu e-mail para receber as instruções de recuperação de senha.</p>
@@ -130,41 +19,12 @@
                 <label for="emailRecover">E-mail:</label>
                 <input type="email" id="emailRecover" placeholder="seuemail@exemplo.com" required>
             </div>
-            <button type="submit" class="btn-primary">Enviar Instruções</button>
+            <button type="submit" class="btn btn-primary">Enviar Instruções</button>
         </form>
         
         <p class="link-text">Lembrou da senha? <a href="index.html">Voltar para o Login</a></p>
     </div>
 
-    <script type="module">
-        const API_URL = 'http://localhost:3000'; // URL do seu backend Node.js
-
-        const recoverForm = document.getElementById('recoverForm');
-
-        recoverForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('emailRecover').value;
-
-            try {
-                const response = await fetch(`${API_URL}/recuperar-senha`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ email })
-                });
-
-                const data = await response.json();
-                alert(data.message); // Exibe a mensagem do servidor
-                if (response.ok) {
-                    // Opcional: Redirecionar ou limpar formulário
-                    recoverForm.reset();
-                }
-            } catch (error) {
-                console.error('Erro na requisição de recuperação de senha:', error);
-                alert('Erro ao tentar recuperar a senha. Tente novamente mais tarde.');
-            }
-        });
-    </script>
+    <script type="module" src="js/recuperar-senha.js"></script>
 </body>
 </html>
