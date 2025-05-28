@@ -417,3 +417,62 @@ body {
 .hidden {
     display: none;
 }
+.dicas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.dica-card {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 5px solid var(--primary-color);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.dica-card h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+}
+
+.dica-card h4 .fas {
+    margin-right: 0.5rem;
+    font-size: 1.1em;
+}
+
+.dica-card p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-color-secondary);
+}
+
+.charts-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+    gap: 1.5rem;
+    margin-top: 2rem; 
+}
+
+.chart-container {
+    background-color: var(--card-color);
+    padding: 1.5rem;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    position: relative;
+    height: 380px; 
+}
+
+.chart-container h4 { 
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-color-primary);
+    margin-bottom: 1rem;
+    text-align: center;
+}

@@ -170,13 +170,15 @@ async function deleteMovimentacao(id) {
 async function loadMovimentacaoForEdit(id) {
     try {
         const response = await fetchWithAuth(`/movimentacoes/${id}`);
-        if (!response.ok) throw new Error('Movimentação não encontrada para edição.');
+        if (!response.ok) {
+            const errorData = await response.json().catch(()=>({message: 'Movimentação não encontrada para edição.'}));
+            throw new Error(errorData.message);
+        }
         const mov = await response.json();
 
         document.getElementById('movimentacaoId').value = mov.id;
         document.getElementById('movDescricao').value = mov.descricao;
         document.getElementById('movValor').value = mov.valor;
-        // Para campos de data, é preciso formatar para YYYY-MM-DD
         document.getElementById('movData').value = new Date(mov.data).toISOString().split('T')[0];
         document.getElementById('movTipo').value = mov.tipo;
         document.getElementById('movCategoria').value = mov.categoria || '';

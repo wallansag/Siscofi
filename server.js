@@ -621,3 +621,67 @@ app.get('/:page.html', authenticateToken, (req, res) => {
 app.listen(port, () => {
     console.log(`Servidor rodando em http://localhost:${port}`);
 });
+app.get('/api/dicas', authenticateToken, async (req, res) => {
+    const userId = req.user.userId;
+    let dicasSugeridas = [];
+
+    try {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const [gastosResults] = await pool.query(
+            `SELECT categoria, SUM(valor) as total_gasto 
+             FROM movimentacoes 
+             WHERE usuario_id = ? AND tipo = 'gasto' AND data >= ?
+             GROUP BY categoria 
+             ORDER BY total_gasto DESC 
+             LIMIT 3`,
+            [userId, thirtyDaysAgo.toISOString().split('T')[0]]
+        );
+
+        const [metasResults] = await pool.query(
+            'SELECT nome_meta, tipo_meta, valor_alvo, valor_acumulado FROM metas WHERE usuario_id = ? AND ativa = TRUE',
+            [userId]
+        );
+
+        const dicasPredefinidas = [
+            { id: 1, titulo: "Revise suas Assinaturas", descricao: "Muitas vezes pagamos por serviços de streaming ou apps que mal usamos. Que tal revisar suas assinaturas mensais e cancelar as desnecessárias?", categoria_gatilho: ["Lazer", "Assinaturas", "Entretenimento"] },
+            { id: 2, titulo: "Planeje suas Refeições", descricao: "Comer fora ou pedir delivery pode pesar no orçamento. Tente planejar suas refeições e cozinhar mais em casa.", categoria_gatilho: ["Alimentação", "Restaurantes", "Delivery"] },
+            { id: 3, titulo: "Dia de Lazer Econômico", descricao: "Procure por atividades de lazer gratuitas ou mais baratas na sua cidade, como parques, eventos culturais gratuitos ou promoções.", categoria_gatilho: ["Lazer", "Entretenimento"] },
+            { id: 4, titulo: "Pequenos Gastos, Grande Impacto", descricao: "Aqueles pequenos gastos diários, como um café especial, podem somar muito no final do mês. Tente reduzir a frequência.", categoria_gatilho: null },
+            { id: 5, titulo: "Foco na Meta!", descricao: "Você tem metas importantes! Cada real economizado te aproxima de alcançá-las. Considere se um gasto é realmente necessário ou se pode esperar.", categoria_gatilho: null, requer_meta_ativa: true }
+        ];
+        
+        const dicaPorId = (id) => dicasPredefinidas.find(d => d.id === id);
+
+        const foiSugerida = (id) => dicasSugeridas.some(ds => ds.id === id);
+
+        dicasSugeridas.push(dicaPorId(4));
+        if (metasResults.length > 0 && !foiSugerida(5)) {
+            dicasSugeridas.push(dicaPorId(5));
+        }
+        
+        for (const gasto of gastosResults) {
+            const dicaRelevante = dicasPredefinidas.find(dica => 
+                dica.categoria_gatilho && 
+                dica.categoria_gatilho.map(cg => cg.toLowerCase()).includes(gasto.categoria.toLowerCase()) &&
+                !foiSugerida(dica.id)
+            );
+            if (dicaRelevante) {
+                dicasSugeridas.push(dicaRelevante);
+            }
+        }
+        
+        if (dicasSugeridas.length < 3) {
+             dicasPredefinidas.forEach(dp => {
+                 if (dicasSugeridas.length < 3 && !foiSugerida(dp.id) && !dp.requer_meta_ativa && !dp.categoria_gatilho) {
+                     dicasSugeridas.push(dp);
+                 }
+             });
+        }
+
+        res.status(200).json(dicasSugeridas.filter(d => d));
+
+    } catch (err) {
+        handleServerError(res, err, 'Erro ao buscar dicas financeiras.');
+    }
+});

@@ -11,13 +11,14 @@
 <body class="app-page">
     <header class="app-header">
         <div class="header-left">
-            <img src="images/SISCOFI.png" alt="Logotipo do Siscofi" class="header-logo">
+            <img src="CSS/anexos/SISCOFI.png" alt="Logotipo do Siscofi" class="header-logo">
         </div>
         <nav class="main-nav">
             <a href="tela-inicial.html">Início</a>
             <a href="movimentacoes.html" class="active">Movimentações</a>
             <a href="metas.html">Metas</a>
             <a href="relatorios.html">Relatórios</a>
+            <a href="dicas.html">Dicas</a>
             <a href="#" id="logoutButton" class="btn btn-logout">Sair</a>
         </nav>
     </header>
@@ -25,9 +26,9 @@
     <main class="main-content">
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title">Minhas Movimentações</h2>
+                <h2 class="card-title">Meus registros</h2>
                 <button id="openAddMovimentacaoModalBtn" class="btn btn-add">
-                    <i class="fas fa-plus"></i> Adicionar Nova Registro
+                    <i class="fas fa-plus"></i> Adicionar Novo Registro
                 </button>
             </div>
             <div class="table-container">
@@ -45,7 +46,7 @@
                     </thead>
                     <tbody id="movimentacoesTableBody">
                         <tr>
-                            <td colspan="7" style="text-align: center; padding: 1rem;">Carregando movimentações...</td>
+                            <td colspan="7" style="text-align: center; padding: 1rem;">Carregando registros...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -55,7 +56,7 @@
 
     <div id="movimentacaoModal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3 id="movimentacaoModalTitle">Adicionar Registro</h3>
+            <h3 id="movimentacaoModalTitle">Adicionar Novo Registro</h3>
             <form id="movimentacaoForm">
                 <input type="hidden" id="movimentacaoId">
                 
@@ -83,7 +84,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="movCategoria">Categoria (Opcional)</label>
+                    <label for="movCategoria">Categoria </label>
                     <input type="text" id="movCategoria" placeholder="Ex: Moradia, Alimentação, Lazer">
                 </div>
 
