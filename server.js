@@ -167,14 +167,16 @@ app.post('/redefinir-senha', async (req, res) => {
     }
 });
 app.post('/movimentacoes', authenticateToken, async (req, res) => {
-    const { tipo, descricao, valor, data, categoria, tipo_recorrencia } = req.body;
+    const { tipo, descricao, valor, data, categoria, tipo_recorrencia, conta_recorrente_id } = req.body;
     const usuario_id = req.user.userId;
+
     if (!validateRequiredFields(res, ['tipo', 'descricao', 'valor', 'data', 'tipo_recorrencia'], req.body)) return;
     if (valor <= 0) return res.status(400).json({ message: 'O valor da movimentação deve ser maior que zero.' });
     if (!['ganho', 'gasto'].includes(tipo)) return res.status(400).json({ message: 'O tipo da movimentação deve ser "ganho" ou "gasto".' });
+    
     try {
-        const sql = `INSERT INTO movimentacoes (usuario_id, tipo, descricao, valor, data, categoria, tipo_recorrencia) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-        const [result] = await pool.query(sql, [usuario_id, tipo, descricao, valor, data, categoria, tipo_recorrencia]);
+        const sql = `INSERT INTO movimentacoes (usuario_id, tipo, descricao, valor, data, categoria, tipo_recorrencia, conta_recorrente_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+        const [result] = await pool.query(sql, [usuario_id, tipo, descricao, valor, data, categoria, tipo_recorrencia, conta_recorrente_id || null]);
         res.status(201).json({ message: 'Movimentação adicionada com sucesso!', id: result.insertId });
     } catch (err) {
         handleServerError(res, err, 'Erro ao adicionar movimentação.');
@@ -229,7 +231,7 @@ app.get('/movimentacoes/:id', authenticateToken, async (req, res) => {
 
 app.put('/movimentacoes/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
-    const { tipo, descricao, valor, data, categoria, tipo_recorrencia } = req.body;
+    const { tipo, descricao, valor, data, categoria, tipo_recorrencia, conta_recorrente_id } = req.body;
     const usuario_id = req.user.userId;
 
     if (!validateRequiredFields(res, ['tipo', 'descricao', 'valor', 'data', 'tipo_recorrencia'], req.body)) return;
@@ -237,8 +239,8 @@ app.put('/movimentacoes/:id', authenticateToken, async (req, res) => {
     if (!['ganho', 'gasto'].includes(tipo)) return res.status(400).json({ message: 'O tipo da movimentação deve ser "ganho" ou "gasto".' });
 
     try {
-        const sql = `UPDATE movimentacoes SET tipo = ?, descricao = ?, valor = ?, data = ?, categoria = ?, tipo_recorrencia = ? WHERE id = ? AND usuario_id = ?`;
-        const [result] = await pool.query(sql, [tipo, descricao, valor, data, categoria, tipo_recorrencia, id, usuario_id]);
+        const sql = `UPDATE movimentacoes SET tipo = ?, descricao = ?, valor = ?, data = ?, categoria = ?, tipo_recorrencia = ?, conta_recorrente_id = ? WHERE id = ? AND usuario_id = ?`;
+        const [result] = await pool.query(sql, [tipo, descricao, valor, data, categoria, tipo_recorrencia, conta_recorrente_id || null, id, usuario_id]);
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Movimentação não encontrada ou não pertence a este usuário.' });
         }
@@ -264,41 +266,120 @@ app.delete('/movimentacoes/:id', authenticateToken, async (req, res) => {
     }
 });
 
-app.post('/metas', authenticateToken, async (req, res) => {
-    const { nome_meta, tipo_meta, valor_alvo, data_limite, descricao } = req.body;
+
+app.post('/api/metas/distribuir-saldo', authenticateToken, async (req, res) => {
+    const { valor_a_distribuir } = req.body;
     const usuario_id = req.user.userId;
 
-    if (!validateRequiredFields(res, ['nome_meta', 'tipo_meta', 'valor_alvo'], req.body)) return;
-    if (valor_alvo <= 0) return res.status(400).json({ message: 'O valor alvo da meta deve ser maior que zero.' });
+    if (!valor_a_distribuir || typeof valor_a_distribuir !== 'number' || valor_a_distribuir <= 0) {
+        return res.status(400).json({ message: 'O valor a distribuir deve ser um número positivo.' });
+    }
 
+    let connection;
     try {
-        const sql = `INSERT INTO metas (usuario_id, nome_meta, tipo_meta, valor_alvo, data_inicio, data_limite, descricao) VALUES (?, ?, ?, ?, CURDATE(), ?, ?)`;
-        const [result] = await pool.query(sql, [usuario_id, nome_meta, tipo_meta, valor_alvo, data_limite, descricao]);
-        res.status(201).json({ message: 'Meta adicionada com sucesso!', id: result.insertId });
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+        console.log('Transação iniciada para distribuir saldo.');
+
+        const [saldoGeralResults] = await connection.query(
+            `SELECT COALESCE(SUM(CASE WHEN tipo = 'ganho' THEN valor ELSE -valor END), 0) AS saldoSiscofi
+             FROM movimentacoes
+             WHERE usuario_id = ?`,
+            [usuario_id]
+        );
+        const saldoSiscofiDisponivel = parseFloat(saldoGeralResults[0].saldoSiscofi);
+        console.log(`Saldo Siscofi disponível: ${saldoSiscofiDisponivel}, Valor a distribuir: ${valor_a_distribuir}`);
+
+        if (valor_a_distribuir > saldoSiscofiDisponivel) {
+             console.log('Valor a distribuir excede saldo. Rollback.');
+             await connection.rollback();
+             return res.status(400).json({ 
+                 message: `Valor a distribuir (R$${valor_a_distribuir.toFixed(2)}) excede seu saldo Siscofi disponível (R$${saldoSiscofiDisponivel.toFixed(2)}).` 
+             });
+        }
+
+        const [metasParaDistribuicao] = await connection.query(
+            'SELECT id, nome_meta, valor_alvo, valor_acumulado FROM metas WHERE usuario_id = ? AND ativa = TRUE AND valor_acumulado < valor_alvo',
+            [usuario_id]
+        );
+        console.log(`Metas encontradas para distribuição: ${metasParaDistribuicao.length}`);
+
+        if (metasParaDistribuicao.length === 0) {
+            console.log('Nenhuma meta ativa/incompleta. Rollback.');
+            await connection.rollback();
+            return res.status(404).json({ message: 'Nenhuma meta ativa ou incompleta encontrada para distribuir o saldo.' });
+        }
+
+        const valorPorMeta = valor_a_distribuir / metasParaDistribuicao.length;
+        console.log(`Valor por meta: ${valorPorMeta}`);
+
+        for (const meta of metasParaDistribuicao) {
+            const valorAcumuladoAtual = parseFloat(meta.valor_acumulado);
+            const novoValorAcumulado = valorAcumuladoAtual + valorPorMeta;
+            console.log(`  Meta ID ${meta.id} (${meta.nome_meta}): Acumulado anterior: ${valorAcumuladoAtual}, Adicionando: ${valorPorMeta}, Novo Acumulado: ${novoValorAcumulado}`);
+            
+            const [updateResult] = await connection.query(
+                'UPDATE metas SET valor_acumulado = ? WHERE id = ? AND usuario_id = ?',
+                [novoValorAcumulado, meta.id, usuario_id]
+            );
+            console.log(`    Resultado do UPDATE para meta ID ${meta.id}: affectedRows = ${updateResult.affectedRows}`);
+        }
+        
+        
+        const descricaoGastoMetas = `Distribuição de R$${valor_a_distribuir.toFixed(2)} para ${metasParaDistribuicao.length} meta(s).`;
+        const categoriaGastoMetas = "Alocação para Metas"; 
+        
+        console.log(`Registrando gasto: ${descricaoGastoMetas}, Categoria: ${categoriaGastoMetas}, Valor: ${valor_a_distribuir}`);
+        await connection.query(
+            `INSERT INTO movimentacoes (usuario_id, tipo, descricao, valor, data, categoria, tipo_recorrencia) 
+             VALUES (?, 'gasto', ?, ?, CURDATE(), ?, 'UNICO')`,
+            [usuario_id, descricaoGastoMetas, valor_a_distribuir, categoriaGastoMetas]
+        );
+        console.log('Movimentação de gasto para distribuição de metas registrada.');
+     
+
+        await connection.commit();
+        console.log('Transação COMITADA com sucesso.');
+        res.status(200).json({ 
+            message: `R$${valor_a_distribuir.toFixed(2)} distribuídos com sucesso entre ${metasParaDistribuicao.length} meta(s) e registrado como movimentação.`,
+            detalhes: metasParaDistribuicao.map(m => ({ nome: m.nome_meta, adicionado: valorPorMeta.toFixed(2) }))
+        });
+
     } catch (err) {
-        handleServerError(res, err, 'Erro ao adicionar meta.');
+        if (connection) {
+            console.error('ERRO durante a transação, realizando ROLLBACK.');
+            await connection.rollback();
+        }
+        console.error('!!! ERRO DETALHADO em /api/metas/distribuir-saldo !!!:', err);
+        handleServerError(res, err, 'Erro ao distribuir saldo para as metas.');
+    } finally {
+        if (connection) {
+            console.log('Conexão com DB liberada.');
+            connection.release();
+        }
     }
 });
 
 app.get('/metas', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
-
     try {
-        const sql = 'SELECT id, nome_meta, tipo_meta, valor_alvo, valor_acumulado, data_inicio, data_limite, descricao, ativa FROM metas WHERE usuario_id = ? ORDER BY data_inicio DESC';
-        const [results] = await pool.query(sql, [userId]);
+        const [results] = await pool.query(
+            'SELECT id, nome_meta, tipo_meta, valor_alvo, valor_acumulado, data_inicio, data_limite, descricao, ativa FROM metas WHERE usuario_id = ? ORDER BY data_inicio DESC', 
+            [userId]
+        );
         res.status(200).json(results);
     } catch (err) {
         handleServerError(res, err, 'Erro ao buscar metas.');
     }
 });
-
 app.get('/metas/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const userId = req.user.userId;
-
     try {
-        const sql = 'SELECT id, nome_meta, tipo_meta, valor_alvo, valor_acumulado, data_inicio, data_limite, descricao, ativa FROM metas WHERE id = ? AND usuario_id = ?';
-        const [result] = await pool.query(sql, [id, userId]);
+        const [result] = await pool.query(
+            'SELECT id, nome_meta, tipo_meta, valor_alvo, valor_acumulado, data_inicio, data_limite, descricao, ativa FROM metas WHERE id = ? AND usuario_id = ?', 
+            [id, userId]
+        );
         if (result.length === 0) {
             return res.status(404).json({ message: 'Meta não encontrada ou não pertence a este usuário.' });
         }
@@ -331,16 +412,21 @@ app.put('/metas/:id', authenticateToken, async (req, res) => {
 app.delete('/metas/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const userId = req.user.userId;
-
+    let connection;
     try {
-        const sql = 'DELETE FROM metas WHERE id = ? AND usuario_id = ?';
-        const [result] = await pool.query(sql, [id, userId]);
+        connection = await pool.getConnection();
+        const [result] = await connection.query(
+            'DELETE FROM metas WHERE id = ? AND usuario_id = ?', 
+            [id, userId]
+        );
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Meta não encontrada ou não pertence a este usuário.' });
         }
         res.status(200).json({ message: 'Meta excluída com sucesso!' });
     } catch (err) {
         handleServerError(res, err, 'Erro ao excluir meta.');
+    } finally {
+        if (connection) connection.release();
     }
 });
 
@@ -621,67 +707,173 @@ app.get('/:page.html', authenticateToken, (req, res) => {
 app.listen(port, () => {
     console.log(`Servidor rodando em http://localhost:${port}`);
 });
+
+const formatCurrency = (value) => {
+    const numericValue = Number(value) || 0;
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(numericValue);
+};
+
 app.get('/api/dicas', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     let dicasSugeridas = [];
 
     try {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const [gastosResults] = await pool.query(
-            `SELECT categoria, SUM(valor) as total_gasto 
-             FROM movimentacoes 
-             WHERE usuario_id = ? AND tipo = 'gasto' AND data >= ?
-             GROUP BY categoria 
-             ORDER BY total_gasto DESC 
-             LIMIT 3`,
-            [userId, thirtyDaysAgo.toISOString().split('T')[0]]
-        );
-
-        const [metasResults] = await pool.query(
-            'SELECT nome_meta, tipo_meta, valor_alvo, valor_acumulado FROM metas WHERE usuario_id = ? AND ativa = TRUE',
+        const [gastosVinculados] = await pool.query(
+            `SELECT cr.id, cr.nome, mov.valor, mov.data
+             FROM movimentacoes mov
+             JOIN contas_recorrentes cr ON mov.conta_recorrente_id = cr.id
+             WHERE mov.usuario_id = ? AND mov.tipo = 'gasto' AND mov.data >= DATE_SUB(CURDATE(), INTERVAL 2 MONTH)
+             ORDER BY cr.id, mov.data DESC`,
             [userId]
         );
 
-        const dicasPredefinidas = [
-            { id: 1, titulo: "Revise suas Assinaturas", descricao: "Muitas vezes pagamos por serviços de streaming ou apps que mal usamos. Que tal revisar suas assinaturas mensais e cancelar as desnecessárias?", categoria_gatilho: ["Lazer", "Assinaturas", "Entretenimento"] },
-            { id: 2, titulo: "Planeje suas Refeições", descricao: "Comer fora ou pedir delivery pode pesar no orçamento. Tente planejar suas refeições e cozinhar mais em casa.", categoria_gatilho: ["Alimentação", "Restaurantes", "Delivery"] },
-            { id: 3, titulo: "Dia de Lazer Econômico", descricao: "Procure por atividades de lazer gratuitas ou mais baratas na sua cidade, como parques, eventos culturais gratuitos ou promoções.", categoria_gatilho: ["Lazer", "Entretenimento"] },
-            { id: 4, titulo: "Pequenos Gastos, Grande Impacto", descricao: "Aqueles pequenos gastos diários, como um café especial, podem somar muito no final do mês. Tente reduzir a frequência.", categoria_gatilho: null },
-            { id: 5, titulo: "Foco na Meta!", descricao: "Você tem metas importantes! Cada real economizado te aproxima de alcançá-las. Considere se um gasto é realmente necessário ou se pode esperar.", categoria_gatilho: null, requer_meta_ativa: true }
-        ];
-        
-        const dicaPorId = (id) => dicasPredefinidas.find(d => d.id === id);
-
-        const foiSugerida = (id) => dicasSugeridas.some(ds => ds.id === id);
-
-        dicasSugeridas.push(dicaPorId(4));
-        if (metasResults.length > 0 && !foiSugerida(5)) {
-            dicasSugeridas.push(dicaPorId(5));
+        const gastosAgrupados = {};
+        for (const gasto of gastosVinculados) {
+            if (!gastosAgrupados[gasto.id]) {
+                gastosAgrupados[gasto.id] = { nome: gasto.nome, valores: [] };
+            }
+            gastosAgrupados[gasto.id].valores.push({ valor: parseFloat(gasto.valor), data: gasto.data });
         }
-        
-        for (const gasto of gastosResults) {
-            const dicaRelevante = dicasPredefinidas.find(dica => 
-                dica.categoria_gatilho && 
-                dica.categoria_gatilho.map(cg => cg.toLowerCase()).includes(gasto.categoria.toLowerCase()) &&
-                !foiSugerida(dica.id)
-            );
-            if (dicaRelevante) {
-                dicasSugeridas.push(dicaRelevante);
+
+        for (const contaId in gastosAgrupados) {
+            const conta = gastosAgrupados[contaId];
+            if (conta.valores.length >= 2) {
+                const valorAtual = conta.valores[0].valor;
+                const valorAnterior = conta.valores[1].valor;
+                if (valorAtual > valorAnterior * 1.10) {
+                    dicasSugeridas.push({
+                        titulo: `Atenção com sua conta de "${conta.nome}"!`,
+                        descricao: `Notamos um aumento no valor da sua conta de ${conta.nome}. No mês anterior foi ${formatCurrency(valorAnterior)} e no lançamento mais recente foi ${formatCurrency(valorAtual)}. Verifique o motivo do aumento para manter o controle.`
+                    });
+                }
             }
         }
-        
-        if (dicasSugeridas.length < 3) {
-             dicasPredefinidas.forEach(dp => {
-                 if (dicasSugeridas.length < 3 && !foiSugerida(dp.id) && !dp.requer_meta_ativa && !dp.categoria_gatilho) {
-                     dicasSugeridas.push(dp);
-                 }
-             });
-        }
 
-        res.status(200).json(dicasSugeridas.filter(d => d));
+        res.status(200).json(dicasSugeridas);
 
     } catch (err) {
         handleServerError(res, err, 'Erro ao buscar dicas financeiras.');
+    }
+});
+
+
+
+
+
+app.post('/api/metas/distribuir-saldo', authenticateToken, async (req, res) => {
+    const { valor_a_distribuir } = req.body;
+    const usuario_id = req.user.userId;
+
+    if (!valor_a_distribuir || typeof valor_a_distribuir !== 'number' || valor_a_distribuir <= 0) {
+        return res.status(400).json({ message: 'O valor a distribuir deve ser um número positivo.' });
+    }
+
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        
+        const [saldoGeralResults] = await connection.query(
+            `SELECT COALESCE(SUM(CASE WHEN tipo = 'ganho' THEN valor ELSE -valor END), 0) AS saldoSiscofi
+             FROM movimentacoes
+             WHERE usuario_id = ?`,
+            [usuario_id]
+        );
+        const saldoSiscofiDisponivel = saldoGeralResults[0].saldoSiscofi;
+
+        if (valor_a_distribuir > saldoSiscofiDisponivel) {
+         
+            await connection.rollback();
+            return res.status(400).json({ 
+                message: `Valor a distribuir (R$${valor_a_distribuir.toFixed(2)}) excede seu saldo Siscofi disponível (R$${saldoSiscofiDisponivel.toFixed(2)}).` 
+            });
+        }
+        
+
+        
+        const [metasParaDistribuicao] = await connection.query(
+            'SELECT id, valor_alvo, valor_acumulado FROM metas WHERE usuario_id = ? AND ativa = TRUE AND valor_acumulado < valor_alvo',
+            [usuario_id]
+        );
+
+        if (metasParaDistribuicao.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ message: 'Nenhuma meta ativa ou incompleta encontrada para distribuir o saldo.' });
+        }
+
+        
+        const valorPorMeta = valor_a_distribuir / metasParaDistribuicao.length;
+
+        
+        for (const meta of metasParaDistribuicao) {
+            const novoValorAcumulado = meta.valor_acumulado + valorPorMeta;
+            await connection.query(
+                'UPDATE metas SET valor_acumulado = ? WHERE id = ?',
+                [novoValorAcumulado, meta.id]
+            );
+        }
+
+
+        await connection.commit();
+        res.status(200).json({ 
+            message: `R$${valor_a_distribuir.toFixed(2)} distribuídos com sucesso entre ${metasParaDistribuicao.length} meta(s). Cada meta recebeu aproximadamente R$${valorPorMeta.toFixed(2)}.`
+        });
+
+    } catch (err) {
+        if (connection) await connection.rollback();
+        handleServerError(res, err, 'Erro ao distribuir saldo para as metas.');
+    } finally {
+        if (connection) connection.release();
+    }
+});
+app.post('/api/contas-recorrentes', authenticateToken, async (req, res) => {
+    const { nome, categoria_padrao } = req.body;
+    const usuario_id = req.user.userId;
+
+    if (!nome) {
+        return res.status(400).json({ message: 'O nome da conta recorrente é obrigatório.' });
+    }
+
+    try {
+        const sql = `INSERT INTO contas_recorrentes (usuario_id, nome, categoria_padrao) VALUES (?, ?, ?)`;
+        const [result] = await pool.query(sql, [usuario_id, nome, categoria_padrao || null]);
+        res.status(201).json({ message: 'Conta recorrente criada com sucesso!', id: result.insertId });
+    } catch (err) {
+        handleServerError(res, err, 'Erro ao criar conta recorrente.');
+    }
+});
+
+app.get('/api/contas-recorrentes', authenticateToken, async (req, res) => {
+    const usuario_id = req.user.userId;
+    try {
+        const [results] = await pool.query(
+            'SELECT id, nome, categoria_padrao FROM contas_recorrentes WHERE usuario_id = ? AND ativa = TRUE ORDER BY nome ASC',
+            [usuario_id]
+        );
+        res.status(200).json(results);
+    } catch (err) {
+        handleServerError(res, err, 'Erro ao buscar contas recorrentes.');
+    }
+});
+
+app.delete('/api/contas-recorrentes/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const usuario_id = req.user.userId;
+
+    try {
+        const [result] = await pool.query(
+            'UPDATE contas_recorrentes SET ativa = FALSE WHERE id = ? AND usuario_id = ?',
+            [id, usuario_id]
+        );
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Conta recorrente não encontrada ou não pertence a este usuário.' });
+        }
+        res.status(200).json({ message: 'Conta recorrente desativada com sucesso.' });
+    } catch (err) {
+        handleServerError(res, err, 'Erro ao desativar conta recorrente.');
     }
 });

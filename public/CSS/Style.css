@@ -476,3 +476,204 @@ body {
     margin-bottom: 1rem;
     text-align: center;
 }
+/* === ESTILOS PARA A PÁGINA DE METAS === */
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.metas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.meta-card {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 5px solid var(--primary-color);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.meta-card h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-color-primary);
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+
+.meta-descricao-card {
+    font-size: 0.9rem;
+    color: var(--text-color-secondary);
+    margin-bottom: 1rem;
+    flex-grow: 1; /* Faz a descrição ocupar o espaço disponível */
+}
+
+.meta-valores {
+    font-size: 1.1rem;
+    color: var(--text-color-secondary);
+    margin-bottom: 1rem;
+}
+
+.meta-valores span:first-child {
+    font-weight: 600;
+    color: var(--text-color-primary);
+}
+
+.progress-bar-container {
+    width: 100%;
+    background-color: #e2e8f0;
+    border-radius: 9999px;
+    height: 10px;
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+}
+
+.progress-bar {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.5s ease-in-out;
+}
+
+.meta-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    color: var(--text-color-secondary);
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.meta-categoria {
+    background-color: #e2e8f0;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    text-transform: capitalize;
+}
+
+.meta-actions {
+    margin-top: auto; /* Empurra os botões para o final do card */
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.btn.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    margin-top: 0; /* Remove a margem superior padrão do .btn-primary */
+    width: auto;
+}
+
+.btn-edit-meta {
+    background-color: var(--primary-color);
+    color: white;
+}
+.btn-edit-meta:hover {
+    background-color: var(--primary-color-dark);
+}
+
+.btn-delete-meta {
+    background-color: var(--danger-color);
+    color: white;
+}
+.btn-delete-meta:hover {
+    background-color: var(--danger-color-dark);
+}
+
+
+/* === ESTILOS PARA MODAIS === */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+}
+
+.modal-content {
+    background-color: var(--card-color);
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 500px;
+}
+
+.modal-content h3 {
+    margin-top: 0;
+    font-size: 1.5rem;
+    color: var(--text-color-primary);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.btn-secondary {
+    background-color: #a0aec0;
+    width: auto;
+    margin-top: 0;
+}
+.btn-secondary:hover {
+    background-color: #718096;
+}
+/* === ESTILOS PARA A PÁGINA DE DICAS === */
+
+.dicas-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem; /* Adiciona um espaço acima da grade de dicas */
+}
+
+.dica-card {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 5px solid var(--accent-color); /* Usando a cor de destaque (verde) para as dicas */
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.dica-card h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--accent-color-dark); /* Usando um verde mais escuro para o título */
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+}
+
+.dica-card h4 .fas { /* Estilo para o ícone de lâmpada */
+    margin-right: 0.5rem;
+    font-size: 1.1em;
+}
+
+.dica-card p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-color-secondary);
+}

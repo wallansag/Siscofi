@@ -1,5 +1,5 @@
-# Ignorar dependências do Node
+
 node_modules
 
-# Ignorar arquivo de ambiente com informações sensíveis
+
 .env

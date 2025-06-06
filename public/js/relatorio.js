@@ -1,19 +1,26 @@
-import { getUserId, getUserName, redirectToLoginIfNotAuthenticated, setupLogoutButton, formatCurrency } from './auth.js';
+import { getUserName, redirectToLoginIfNotAuthenticated, logout, fetchWithAuth, formatCurrency } from './auth.js';
 
-const API_URL = 'http://localhost:3000';
-let chartInstances = {};
+let expensesByCategoryChartInstance;
+let monthlyComparisonChartInstance;
 
 document.addEventListener('DOMContentLoaded', () => {
     redirectToLoginIfNotAuthenticated();
-    setupLogoutButton();
+
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+    }
 
     const userNameDisplay = document.querySelector('.app-header .user-info span');
-    if (userNameDisplay) {
-        userNameDisplay.textContent = getUserName() || 'Usuário';
+    if (userNameDisplay && getUserName()) {
+        userNameDisplay.textContent = getUserName();
     }
 
     const applyFilterBtn = document.getElementById('applyFilterBtn');
-    if(applyFilterBtn) {
+    if (applyFilterBtn) {
         applyFilterBtn.addEventListener('click', loadRelatorioData);
     }
 
@@ -21,51 +28,97 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadRelatorioData() {
-    const userId = getUserId();
-    const startDate = document.getElementById('startDate')?.value;
-    const endDate = document.getElementById('endDate')?.value;
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    
+    const totalReceitasSpan = document.getElementById('totalReceitas');
+    const totalDespesasSpan = document.getElementById('totalDespesas');
+    const saldoRelatorioSpan = document.getElementById('saldoRelatorio'); 
+    const topDespesasList = document.getElementById('topDespesasList');
 
-    let url = `${API_URL}/api/relatorios?userId=${userId}`;
-    if (startDate) url += `&data_inicio=${startDate}`;
-    if (endDate) url += `&data_fim=${endDate}`;
+
+    if (!totalReceitasSpan || !totalDespesasSpan || !saldoRelatorioSpan || !topDespesasList) {
+        console.error('Elementos do DOM para resumo não encontrados.');
+        return;
+    }
+    
+    totalReceitasSpan.textContent = formatCurrency(0);
+    totalDespesasSpan.textContent = formatCurrency(0);
+    saldoRelatorioSpan.textContent = formatCurrency(0);
+    topDespesasList.innerHTML = '<li>Carregando...</li>';
+
+
+    let queryParams = '';
+    if (startDateInput && startDateInput.value) {
+        queryParams += `startDate=${startDateInput.value}`;
+    }
+    if (endDateInput && endDateInput.value) {
+        queryParams += `${queryParams ? '&' : ''}endDate=${endDateInput.value}`;
+    }
+
+    const url = `/api/relatorios${queryParams ? '?' + queryParams : ''}`;
 
     try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Falha ao carregar dados do relatório.');
-
+        const response = await fetchWithAuth(url);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: 'Falha ao carregar dados do relatório.' }));
+            throw new Error(errorData.message);
+        }
         const data = await response.json();
-        
-        updateSummary(data.resumo);
-        renderPieChart('despesasChart', 'Gastos por Categoria', data.gastos_por_categoria);
-        renderBarChart('receitasDespesasChart', 'Receitas vs. Despesas', data.resumo_mensal);
+
+        totalReceitasSpan.textContent = formatCurrency(data.totalReceitas);
+        totalDespesasSpan.textContent = formatCurrency(data.totalDespesas);
+        saldoRelatorioSpan.textContent = formatCurrency(data.saldo);
+
+        topDespesasList.innerHTML = '';
+        if (data.topDespesas && data.topDespesas.length > 0) {
+            data.topDespesas.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `${item.descricao}: ${formatCurrency(item.total_gasto)}`;
+                topDespesasList.appendChild(li);
+            });
+        } else {
+            topDespesasList.innerHTML = '<li>Nenhuma despesa principal para mostrar no período.</li>';
+        }
+
+        renderExpensesByCategoryChart(data.expensesByCategory || {});
+        renderMonthlyComparisonChart(data.monthlyComparisonData || []);
 
     } catch (error) {
-        console.error(error);
-        alert(error.message);
+        console.error('Erro ao buscar ou processar dados do relatório:', error);
+        if(topDespesasList) topDespesasList.innerHTML = `<li>Erro ao carregar dados.</li>`;
+        alert(`Erro ao carregar relatórios: ${error.message}`);
     }
 }
 
-function updateSummary(resumo) {
-    if (!resumo) return;
-    document.getElementById('totalReceitas').textContent = formatCurrency(resumo.total_ganhos || 0);
-    document.getElementById('totalDespesas').textContent = formatCurrency(resumo.total_gastos || 0);
-    document.getElementById('saldoRelatorio').textContent = formatCurrency(resumo.saldo || 0);
-}
+function renderExpensesByCategoryChart(expensesData) {
+    const canvasId = 'despesasChart';
+    const ctx = document.getElementById(canvasId)?.getContext('2d');
+    if (!ctx) return;
 
-function renderPieChart(canvasId, title, data) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
-
-    const labels = data.map(d => d.categoria);
-    const values = data.map(d => d.total);
+    if (expensesByCategoryChartInstance) {
+        expensesByCategoryChartInstance.destroy();
+    }
     
-    chartInstances[canvasId] = new Chart(ctx, {
+    const labels = Object.keys(expensesData);
+    const dataValues = Object.values(expensesData);
+
+    if (labels.length === 0) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.font = "16px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Sem dados de despesas por categoria para exibir.", ctx.canvas.width / 2, ctx.canvas.height / 2);
+        return;
+    }
+
+    expensesByCategoryChartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: labels,
             datasets: [{
-                data: values,
-                backgroundColor: ['#4299e1', '#f6ad55', '#48bb78', '#ed8936', '#a0aec0', '#ecc94b'],
+                label: 'Gastos por Categoria',
+                data: dataValues,
+                backgroundColor: ['#f56565', '#ed8936', '#ecc94b', '#48bb78', '#4299e1', '#9f7aea', '#ed64a6'],
                 hoverOffset: 4
             }]
         },
@@ -73,22 +126,49 @@ function renderPieChart(canvasId, title, data) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                title: { display: true, text: title },
-                legend: { position: 'top' }
+                legend: { position: 'top' },
+                title: { display: false }, // O título já está no HTML
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) label += ': ';
+                            if (context.parsed !== null) label += formatCurrency(context.parsed);
+                            return label;
+                        }
+                    }
+                }
             }
         }
     });
 }
 
-function renderBarChart(canvasId, title, data) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+function renderMonthlyComparisonChart(monthlyData) {
+    const canvasId = 'receitasDespesasChart';
+    const ctx = document.getElementById(canvasId)?.getContext('2d');
+    if (!ctx) return;
 
-    const labels = data?.map(d => d.mes) || [];
-    const receitas = data?.map(d => d.total_ganhos) || [];
-    const despesas = data?.map(d => d.total_gastos) || [];
+    if (monthlyComparisonChartInstance) {
+        monthlyComparisonChartInstance.destroy();
+    }
 
-    chartInstances[canvasId] = new Chart(ctx, {
+    if (!monthlyData || monthlyData.length === 0) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.font = "16px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Sem dados de comparação mensal para exibir.", ctx.canvas.width / 2, ctx.canvas.height / 2);
+        return;
+    }
+    
+    const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const labels = monthlyData.map(d => {
+        const [year, month] = d.month.split('-');
+        return `${monthNames[parseInt(month) - 1]}/${year.substring(2)}`;
+    });
+    const receitas = monthlyData.map(d => d.receitas);
+    const despesas = monthlyData.map(d => d.despesas);
+
+    monthlyComparisonChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
@@ -96,12 +176,16 @@ function renderBarChart(canvasId, title, data) {
                 {
                     label: 'Receitas',
                     data: receitas,
-                    backgroundColor: '#48bb78',
+                    backgroundColor: 'rgba(72, 187, 120, 0.7)', 
+                    borderColor: 'rgba(72, 187, 120, 1)',
+                    borderWidth: 1
                 },
                 {
                     label: 'Despesas',
                     data: despesas,
-                    backgroundColor: '#f56565',
+                    backgroundColor: 'rgba(245, 101, 101, 0.7)', 
+                    borderColor: 'rgba(245, 101, 101, 1)',
+                    borderWidth: 1
                 }
             ]
         },
@@ -109,10 +193,24 @@ function renderBarChart(canvasId, title, data) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                title: { display: true, text: title }
+                legend: { position: 'top' },
+                title: { display: false }, 
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ';
+                            if (context.parsed.y !== null) label += formatCurrency(context.parsed.y);
+                            return label;
+                        }
+                    }
+                }
             },
             scales: {
-                y: { beginAtZero: true }
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: value => formatCurrency(value) }
+                }
             }
         }
     });

@@ -17,6 +17,10 @@ export function getUserName() {
     return localStorage.getItem('userName');
 }
 
+export function getUserId() {
+    return localStorage.getItem('userId');
+}
+
 export function logout() {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userId');
@@ -33,20 +37,23 @@ export function redirectToLoginIfNotAuthenticated() {
 
 export async function fetchWithAuth(url, options = {}) {
     const token = getToken();
-    if (!token) {
+    if (!token && !url.includes('/login') && !url.includes('/cadastrar-usuario') && !url.includes('/solicitar-recuperacao-senha')) {
         redirectToLoginIfNotAuthenticated();
         throw new Error('Token de autenticação não encontrado.');
     }
 
     const headers = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
         ...options.headers,
     };
 
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_URL}${url}`, { ...options, headers });
 
-    if (response.status === 401 || response.status === 403) {
+    if ((response.status === 401 || response.status === 403) && !url.includes('/login')) {
         redirectToLoginIfNotAuthenticated();
         throw new Error('Acesso não autorizado ou token inválido.');
     }
