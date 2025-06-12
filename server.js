@@ -84,8 +84,10 @@ const handleServerError = (res, error, message) => {
 const validateRequiredFields = (res, fields, data) => {
     for (const field of fields) {
         if (data[field] === undefined || data[field] === null || data[field] === '') {
-            res.status(400).json({ message: `O campo '${field}' é obrigatório.` });
-            return false;
+            if(field !== 'categoria' && field !== 'descricao' && field !== 'data_limite' && field !== 'conta_recorrente_id') {
+                 res.status(400).json({ message: `O campo '${field}' é obrigatório.` });
+                 return false;
+            }
         }
     }
     return true;
@@ -94,18 +96,14 @@ const validateRequiredFields = (res, fields, data) => {
 app.post('/cadastrar-usuario', async (req, res) => {
     const { nome, cpf, email, telefone, genero, data_nascimento, senha } = req.body;
     if (!validateRequiredFields(res, ['nome', 'cpf', 'email', 'senha'], req.body)) return;
-    if (senha.length < 6) {
-        return res.status(400).json({ message: 'A senha deve ter no mínimo 6 caracteres.' });
-    }
+    if (senha.length < 6) return res.status(400).json({ message: 'A senha deve ter no mínimo 6 caracteres.' });
     try {
         const hashedPassword = await bcrypt.hash(senha, 10);
         const sql = `INSERT INTO usuarios (nome, cpf, email, telefone, genero, data_nascimento, senha_hash) VALUES (?, ?, ?, ?, ?, ?, ?)`;
         const [result] = await pool.query(sql, [nome, cpf, email, telefone, genero, data_nascimento, hashedPassword]);
         res.status(201).json({ message: 'Usuário cadastrado com sucesso!', id: result.insertId });
     } catch (err) {
-        if (err.code === 'ER_DUP_ENTRY') {
-            return res.status(409).json({ message: 'CPF ou Email já cadastrado.', error: err.message });
-        }
+        if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: 'CPF ou Email já cadastrado.' });
         handleServerError(res, err, 'Erro ao cadastrar usuário.');
     }
 });
@@ -123,16 +121,8 @@ app.post('/login', async (req, res) => {
         const isPasswordValid = await bcrypt.compare(senha, user.senha_hash);
 
         if (isPasswordValid) {
-            const payload = {
-                userId: user.id,
-                userName: user.nome,
-                role: user.role
-            };
-            const token = jwt.sign(
-                payload,
-                process.env.JWT_SECRET,
-                { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
-            );
+            const payload = { userId: user.id, userName: user.nome, role: user.role };
+            const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '1h' });
             return res.status(200).json({
                 message: 'Login bem-sucedido!',
                 token,
@@ -154,24 +144,24 @@ app.post('/solicitar-recuperacao-senha', async (req, res) => {
     try {
         const [userResults] = await pool.query('SELECT id, nome FROM usuarios WHERE email = ?', [email]);
         if (userResults.length === 0) {
-            return res.status(200).json({ message: 'Se o e-mail estiver cadastrado, você receberá um link.' });
+            return res.status(200).json({ message: 'Se o e-mail estiver cadastrado, você receberá um link de redefinição de senha.' });
         }
         const { id: userId, nome: userName } = userResults[0];
         const resetToken = crypto.randomBytes(32).toString('hex');
         const expiresAt = new Date(Date.now() + 3600000);
 
         await pool.query('INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)', [userId, resetToken, expiresAt]);
+
         const resetLink = `http://localhost:<span class="math-inline">\{port\}/recuperar\-senha\.html?token\=</span>{resetToken}&userId=${userId}`;
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: email,
             subject: 'Redefinição de Senha Siscofi',
-            html: `<p>Olá <span class="math-inline">\{userName\},</p\><p\>Clique neste link para redefinir sua senha\: <a href\="</span>{resetLink}">${resetLink}</a></p><p>Este link é válido por 1 hora.</p>`
+            html: `<p>Olá <span class="math-inline">\{userName\},</p\><p\>Você solicitou uma redefinição de senha para sua conta Siscofi\.</p\><p\>Clique neste link para redefinir sua senha\: <a href\="</span>{resetLink}">${resetLink}</a></p><p>Este link é válido por 1 hora.</p><p>Se você não solicitou isso, por favor, ignore este e-mail.</p><p>Atenciosamente,<br>Equipe Siscofi</p>`
         };
         await transporter.sendMail(mailOptions);
         res.status(200).json({ message: 'Se o e-mail estiver cadastrado, você receberá um link de redefinição de senha.' });
     } catch (err) {
-        console.error('ERRO AO ENVIAR EMAIL:', err);
         handleServerError(res, err, 'Erro ao solicitar recuperação de senha.');
     }
 });
@@ -179,17 +169,11 @@ app.post('/solicitar-recuperacao-senha', async (req, res) => {
 app.post('/redefinir-senha', async (req, res) => {
     const { userId, token, newPassword } = req.body;
     if (!validateRequiredFields(res, ['userId', 'token', 'newPassword'], req.body)) return;
-    if (newPassword.length < 6) {
-        return res.status(400).json({ message: 'A nova senha deve ter no mínimo 6 caracteres.' });
-    }
+    if (newPassword.length < 6) return res.status(400).json({ message: 'A nova senha deve ter no mínimo 6 caracteres.' });
     try {
-        const [tokenResults] = await pool.query(
-            'SELECT * FROM password_resets WHERE user_id = ? AND token = ? AND expires_at > NOW()',
-            [userId, token]
-        );
-        if (tokenResults.length === 0) {
-            return res.status(400).json({ message: 'Link de redefinição inválido ou expirado.' });
-        }
+        const [tokenResults] = await pool.query('SELECT * FROM password_resets WHERE user_id = ? AND token = ? AND expires_at > NOW()', [userId, token]);
+        if (tokenResults.length === 0) return res.status(400).json({ message: 'Link de redefinição inválido ou expirado.' });
+        
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         await pool.query('UPDATE usuarios SET senha_hash = ? WHERE id = ?', [hashedPassword, userId]);
         await pool.query('DELETE FROM password_resets WHERE user_id = ?', [userId]);
@@ -226,8 +210,8 @@ app.get('/movimentacoes', authenticateToken, async (req, res) => {
         params.push(tipo);
     }
     if (categoria) {
-        sql += ' AND categoria = ?';
-        params.push(categoria);
+        sql += ' AND categoria LIKE ?';
+        params.push(`%${categoria}%`);
     }
     sql += ' ORDER BY data DESC, data_registro DESC';
     try {
@@ -244,9 +228,7 @@ app.get('/movimentacoes/:id', authenticateToken, async (req, res) => {
     try {
         const sql = 'SELECT id, tipo, descricao, valor, data, categoria, tipo_recorrencia, conta_recorrente_id FROM movimentacoes WHERE id = ? AND usuario_id = ?';
         const [result] = await pool.query(sql, [id, userId]);
-        if (result.length === 0) {
-            return res.status(404).json({ message: 'Movimentação não encontrada.' });
-        }
+        if (result.length === 0) return res.status(404).json({ message: 'Movimentação não encontrada.' });
         res.status(200).json(result[0]);
     } catch (err) {
         handleServerError(res, err, 'Erro ao buscar movimentação específica.');
@@ -261,9 +243,7 @@ app.put('/movimentacoes/:id', authenticateToken, async (req, res) => {
     try {
         const sql = `UPDATE movimentacoes SET tipo = ?, descricao = ?, valor = ?, data = ?, categoria = ?, tipo_recorrencia = ?, conta_recorrente_id = ? WHERE id = ? AND usuario_id = ?`;
         const [result] = await pool.query(sql, [tipo, descricao, valor, data, categoria, tipo_recorrencia, conta_recorrente_id || null, id, usuario_id]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Movimentação não encontrada.' });
-        }
+        if (result.affectedRows === 0) return res.status(404).json({ message: 'Movimentação não encontrada.' });
         res.status(200).json({ message: 'Movimentação atualizada com sucesso!' });
     } catch (err) {
         handleServerError(res, err, 'Erro ao atualizar movimentação.');
@@ -275,9 +255,7 @@ app.delete('/movimentacoes/:id', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     try {
         const [result] = await pool.query('DELETE FROM movimentacoes WHERE id = ? AND usuario_id = ?', [id, userId]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Movimentação não encontrada.' });
-        }
+        if (result.affectedRows === 0) return res.status(404).json({ message: 'Movimentação não encontrada.' });
         res.status(200).json({ message: 'Movimentação excluída com sucesso!' });
     } catch (err) {
         handleServerError(res, err, 'Erro ao excluir movimentação.');
@@ -317,9 +295,7 @@ app.get('/metas/:id', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     try {
         const [result] = await pool.query('SELECT * FROM metas WHERE id = ? AND usuario_id = ?', [id, userId]);
-        if (result.length === 0) {
-            return res.status(404).json({ message: 'Meta não encontrada.' });
-        }
+        if (result.length === 0) return res.status(404).json({ message: 'Meta não encontrada.' });
         res.status(200).json(result[0]);
     } catch (err) {
         handleServerError(res, err, 'Erro ao buscar meta específica.');
@@ -335,9 +311,7 @@ app.put('/metas/:id', authenticateToken, async (req, res) => {
         const sql = `UPDATE metas SET nome_meta = ?, tipo_meta = ?, valor_alvo = ?, valor_acumulado = ?, data_limite = ?, descricao = ?, ativa = ? WHERE id = ? AND usuario_id = ?`;
         const params = [nome_meta, tipo_meta, valor_alvo, valor_acumulado, data_limite || null, descricao || null, (typeof ativa === 'boolean' ? ativa : true), id, usuario_id];
         const [result] = await pool.query(sql, params);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Meta não encontrada.' });
-        }
+        if (result.affectedRows === 0) return res.status(404).json({ message: 'Meta não encontrada.' });
         res.status(200).json({ message: 'Meta atualizada com sucesso!' });
     } catch (err) {
         handleServerError(res, err, 'Erro ao atualizar meta.');
@@ -349,9 +323,7 @@ app.delete('/metas/:id', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     try {
         const [result] = await pool.query('DELETE FROM metas WHERE id = ? AND usuario_id = ?', [id, userId]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Meta não encontrada.' });
-        }
+        if (result.affectedRows === 0) return res.status(404).json({ message: 'Meta não encontrada.' });
         res.status(200).json({ message: 'Meta excluída com sucesso!' });
     } catch (err) {
         handleServerError(res, err, 'Erro ao excluir meta.');
@@ -424,9 +396,7 @@ app.delete('/api/contas-recorrentes/:id', authenticateToken, async (req, res) =>
     const usuario_id = req.user.userId;
     try {
         const [result] = await pool.query('UPDATE contas_recorrentes SET ativa = FALSE WHERE id = ? AND usuario_id = ?', [id, usuario_id]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Conta recorrente não encontrada.' });
-        }
+        if (result.affectedRows === 0) return res.status(404).json({ message: 'Conta recorrente não encontrada.' });
         res.status(200).json({ message: 'Conta recorrente desativada com sucesso.' });
     } catch (err) {
         handleServerError(res, err, 'Erro ao desativar conta recorrente.');
@@ -450,9 +420,7 @@ app.put('/api/admin/usuarios/:id', authenticateToken, authorizeAdmin, async (req
     }
     try {
         const [result] = await pool.query('UPDATE usuarios SET role = ? WHERE id = ?', [role, id]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Usuário não encontrado.' });
-        }
+        if (result.affectedRows === 0) return res.status(404).json({ message: 'Usuário não encontrado.' });
         res.status(200).json({ message: 'Usuário atualizado com sucesso!' });
     } catch (err) {
         handleServerError(res, err, 'Erro ao atualizar usuário.');
@@ -467,15 +435,12 @@ app.delete('/api/admin/usuarios/:id', authenticateToken, authorizeAdmin, async (
     }
     try {
         const [result] = await pool.query('DELETE FROM usuarios WHERE id = ?', [id]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Usuário não encontrado.' });
-        }
+        if (result.affectedRows === 0) return res.status(404).json({ message: 'Usuário não encontrado.' });
         res.status(200).json({ message: 'Usuário excluído com sucesso!' });
     } catch (err) {
         handleServerError(res, err, 'Erro ao excluir usuário.');
     }
 });
-
 
 app.get('/api/dashboard/resumo', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
@@ -566,7 +531,6 @@ app.get('/api/relatorios', authenticateToken, async (req, res) => {
     try {
         const params = [userId];
         let dateFilterSql = '';
-
         if (startDate && endDate) {
             dateFilterSql = ' AND data BETWEEN ? AND ?';
             params.push(startDate, endDate);
@@ -586,9 +550,7 @@ app.get('/api/relatorios', authenticateToken, async (req, res) => {
             `SELECT descricao, COALESCE(SUM(valor), 0) AS total_gasto
              FROM movimentacoes
              WHERE usuario_id = ? AND tipo = 'gasto' ${dateFilterSql}
-             GROUP BY descricao
-             ORDER BY total_gasto DESC
-             LIMIT 5;`,
+             GROUP BY descricao ORDER BY total_gasto DESC LIMIT 5;`,
             params
         );
         const topDespesas = topExpensesResults.map(row => ({
@@ -600,8 +562,7 @@ app.get('/api/relatorios', authenticateToken, async (req, res) => {
             `SELECT COALESCE(categoria, 'Outros') AS categoria, COALESCE(SUM(valor), 0) AS total_gasto
              FROM movimentacoes
              WHERE usuario_id = ? AND tipo = 'gasto' ${dateFilterSql}
-             GROUP BY categoria
-             ORDER BY total_gasto DESC;`,
+             GROUP BY categoria ORDER BY total_gasto DESC;`,
             params
         );
         const expensesByCategory = {};
@@ -609,17 +570,18 @@ app.get('/api/relatorios', authenticateToken, async (req, res) => {
             expensesByCategory[row.categoria] = parseFloat(row.total_gasto);
         });
 
+        // Query de comparação mensal
         const [monthlyComparisonResults] = await pool.query(
             `SELECT YEAR(data) as ano, MONTH(data) as mes,
                 COALESCE(SUM(CASE WHEN tipo = 'ganho' THEN valor ELSE 0 END), 0) AS receitas,
                 COALESCE(SUM(CASE WHEN tipo = 'gasto' THEN valor ELSE 0 END), 0) AS despesas
              FROM movimentacoes
              WHERE usuario_id = ? AND data >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
-             GROUP BY ano, mes
-             ORDER BY ano ASC, mes ASC;`,
+             GROUP BY ano, mes ORDER BY ano ASC, mes ASC;`,
             [userId]
         );
 
+        // --- A LÓGICA CORRIGIDA ESTÁ AQUI ---
         const now = new Date();
         const monthlyComparisonData = [];
         const dateMap = new Map();
@@ -627,11 +589,13 @@ app.get('/api/relatorios', authenticateToken, async (req, res) => {
             const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const year = date.getFullYear();
             const month = date.getMonth() + 1;
-            const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+            // CORREÇÃO: Removidas as tags HTML/span indesejadas
+            const monthKey = `${year}-${String(month).padStart(2, '0')}`; 
             dateMap.set(monthKey, { month: monthKey, receitas: 0, despesas: 0 });
         }
         monthlyComparisonResults.forEach(row => {
-            const monthKey = `${row.ano}-${String(row.mes).padStart(2, '0')}`;
+            // CORREÇÃO: Removidas as tags HTML/span indesejadas
+            const monthKey = `${row.ano}-${String(row.mes).padStart(2, '0')}`; 
             if (dateMap.has(monthKey)) {
                 const dataEntry = dateMap.get(monthKey);
                 dataEntry.receitas = parseFloat(row.receitas);
@@ -654,30 +618,11 @@ app.get('/api/relatorios', authenticateToken, async (req, res) => {
     }
 });
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.get('/:page.html', authenticateToken, (req, res) => {
-    const pageName = req.params.page;
-    const filePath = path.join(__dirname, 'public', `${pageName}.html`);
-    res.sendFile(filePath, (err) => {
-        if (err) {
-            console.error(`Erro ao servir ${pageName}.html:`, err);
-            res.status(404).send('Página não encontrada.');
-        }
-    });
-});
-
-app.listen(port, () => {
-    console.log(`Servidor rodando em http://localhost:${port}`);
-});
-
 app.get('/api/dicas', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
     let dicasSugeridas = [];
     try {
-        const [gastosVinculados] = await pool.query( `SELECT cr.id, cr.nome, mov.valor, mov.data FROM movimentacoes mov JOIN contas_recorrentes cr ON mov.conta_recorrente_id = cr.id WHERE mov.usuario_id = ? AND mov.tipo = 'gasto' AND mov.data >= DATE_SUB(CURDATE(), INTERVAL 2 MONTH) ORDER BY cr.id, mov.data DESC`, [userId]);
+        const [gastosVinculados] = await pool.query(`SELECT cr.id, cr.nome, mov.valor, mov.data FROM movimentacoes mov JOIN contas_recorrentes cr ON mov.conta_recorrente_id = cr.id WHERE mov.usuario_id = ? AND mov.tipo = 'gasto' AND mov.data >= DATE_SUB(CURDATE(), INTERVAL 2 MONTH) ORDER BY cr.id, mov.data DESC`, [userId]);
         const gastosAgrupados = {};
         for (const gasto of gastosVinculados) {
             if (!gastosAgrupados[gasto.id]) {
@@ -693,7 +638,7 @@ app.get('/api/dicas', authenticateToken, async (req, res) => {
                 if (valorAtual > valorAnterior * 1.10) {
                     dicasSugeridas.push({
                         titulo: `Atenção com sua conta de "${conta.nome}"!`,
-                        descricao: `Notamos um aumento no valor da sua conta de ${conta.nome}. No mês anterior foi ${formatCurrency(valorAnterior)} e no lançamento mais recente foi ${formatCurrency(valorAtual)}. Verifique o motivo do aumento para manter o controle.`
+                        descricao: `Notamos um aumento no valor da sua conta de ${conta.nome}. No mês anterior foi ${formatCurrency(valorAnterior)} e no lançamento mais recente foi ${formatCurrency(valorAtual)}. Verifique o motivo do aumento.`
                     });
                 }
             }
@@ -702,4 +647,28 @@ app.get('/api/dicas', authenticateToken, async (req, res) => {
     } catch (err) {
         handleServerError(res, err, 'Erro ao buscar dicas financeiras.');
     }
+});
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/:page.html', (req, res, next) => {
+    if (['index', 'recuperar-senha'].includes(req.params.page)) {
+        return next();
+    }
+    authenticateToken(req, res, next);
+}, (req, res) => {
+    const pageName = req.params.page;
+    const filePath = path.join(__dirname, 'public', `${pageName}.html`);
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error(`Erro ao servir ${pageName}.html:`, err);
+            res.status(404).send('Página não encontrada.');
+        }
+    });
+});
+
+app.listen(port, () => {
+    console.log(`Servidor rodando em http://localhost:${port}`);
 });

@@ -415,7 +415,7 @@ body {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 .dicas-grid {
     display: grid;
@@ -677,7 +677,7 @@ body {
     line-height: 1.6;
     color: var(--text-color-secondary);
 }
-/* Adicione ao final do seu style.css */
+
 .role-user {
     background-color: #e2e8f0;
     color: #4a5568;

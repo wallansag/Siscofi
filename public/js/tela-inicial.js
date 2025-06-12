@@ -1,15 +1,37 @@
-import { getUserName, redirectToLoginIfNotAuthenticated, logout, fetchWithAuth, formatCurrency } from './auth.js';
+import { getUserName, getToken, logout, fetchWithAuth, formatCurrency, getUserRole } from './auth.js';
+
+let chartInstances = {};
 
 document.addEventListener('DOMContentLoaded', () => {
-    redirectToLoginIfNotAuthenticated();
+    if (!getToken()) {
+        logout();
+        return;
+    }
     
     const logoutButton = document.getElementById('logoutButton');
-    if(logoutButton) logoutButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        logout();
-    });
+    if(logoutButton) {
+        logoutButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+    }
     
-    document.getElementById('welcomeMessage').textContent = `Olá, ${getUserName() || 'Usuário'}!`;
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    if (welcomeMessage) {
+        welcomeMessage.textContent = `Olá, ${getUserName() || 'Usuário'}!`;
+    }
+
+    const userRole = getUserRole();
+    if (userRole === 'ADMIN') {
+        const mainNav = document.querySelector('.main-nav');
+        const logoutBtn = document.getElementById('logoutButton');
+        if (mainNav && logoutBtn && !document.querySelector('a[href="admin-usuarios.html"]')) {
+            const adminLink = document.createElement('a');
+            adminLink.href = 'admin-usuarios.html';
+            adminLink.textContent = 'Admin';
+            mainNav.insertBefore(adminLink, logoutBtn);
+        }
+    }
 
     fetchResumoFinanceiro();
     fetchUltimasMovimentacoes();
@@ -31,12 +53,12 @@ async function fetchResumoFinanceiro() {
 }
 
 async function fetchUltimasMovimentacoes() {
+    const tbody = document.getElementById('listaUltimasMovimentacoes');
+    if(!tbody) return;
     try {
         const response = await fetchWithAuth('/api/dashboard/ultimas-movimentacoes');
         if (!response.ok) throw new Error('Erro ao buscar movimentações');
         const movimentacoes = await response.json();
-        
-        const tbody = document.getElementById('listaUltimasMovimentacoes');
         tbody.innerHTML = '';
 
         if (movimentacoes.length === 0) {
@@ -59,6 +81,7 @@ async function fetchUltimasMovimentacoes() {
         });
     } catch (error) {
         console.error(error);
+        if(tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 1rem; color: red;">Erro ao carregar.</td></tr>`;
     }
 }
 
@@ -84,10 +107,9 @@ async function fetchGastosPorCategoria() {
     }
 }
 
-let chartInstances = {};
-
 function renderLineChart(canvasId, labels, incomes, expenses) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
+    const ctx = document.getElementById(canvasId)?.getContext('2d');
+    if(!ctx) return;
     if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
     
     chartInstances[canvasId] = new Chart(ctx, {
@@ -115,7 +137,8 @@ function renderLineChart(canvasId, labels, incomes, expenses) {
 }
 
 function renderPieChart(canvasId, labels, values) {
-    const ctx = document.getElementById(canvasId).getContext('2d');
+    const ctx = document.getElementById(canvasId)?.getContext('2d');
+    if(!ctx) return;
     if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
 
     chartInstances[canvasId] = new Chart(ctx, {
@@ -124,7 +147,7 @@ function renderPieChart(canvasId, labels, values) {
             labels: labels,
             datasets: [{
                 data: values,
-                backgroundColor: ['#4299e1', '#f6ad55', '#48bb78', '#ed8936', '#a0aec0', '#ecc94b', '#9f7aea', '#ed64a6'],
+                backgroundColor: ['#4299e1', '#f6ad55', '#48bb78', '#ed8936', '#a0aec0', '#ecc94b'],
                 hoverOffset: 4
             }]
         },

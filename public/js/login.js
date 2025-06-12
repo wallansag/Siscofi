@@ -58,10 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
             senha: document.getElementById('senha').value,
         };
         const confirmar_senha = document.getElementById('confirmar_senha').value;
-
-        if (formData.senha !== confirmar_senha) {
-            return alert('As senhas não coincidem!');
-        }
+        if (formData.senha !== confirmar_senha) return alert('As senhas não coincidem!');
         
         try {
             const response = await fetch(`${API_URL}/cadastrar-usuario`, {

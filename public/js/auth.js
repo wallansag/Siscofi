@@ -11,6 +11,7 @@ export function getToken() {
 export function storeUserData(data) {
     localStorage.setItem('userId', data.userId);
     localStorage.setItem('userName', data.userName);
+    localStorage.setItem('userRole', data.role);
 }
 
 export function getUserName() {
@@ -21,24 +22,23 @@ export function getUserId() {
     return localStorage.getItem('userId');
 }
 
+export function getUserRole() {
+    return localStorage.getItem('userRole');
+}
+
 export function logout() {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userId');
     localStorage.removeItem('userName');
+    localStorage.removeItem('userRole');
     window.location.href = 'index.html';
-}
-
-export function redirectToLoginIfNotAuthenticated() {
-    if (!getToken()) {
-        alert('Sua sessão expirou ou você não está logado. Por favor, faça login novamente.');
-        logout();
-    }
 }
 
 export async function fetchWithAuth(url, options = {}) {
     const token = getToken();
     if (!token && !url.includes('/login') && !url.includes('/cadastrar-usuario') && !url.includes('/solicitar-recuperacao-senha')) {
-        redirectToLoginIfNotAuthenticated();
+        alert('Sua sessão expirou ou você não está logado. Por favor, faça login novamente.');
+        logout();
         throw new Error('Token de autenticação não encontrado.');
     }
 
@@ -54,7 +54,8 @@ export async function fetchWithAuth(url, options = {}) {
     const response = await fetch(`${API_URL}${url}`, { ...options, headers });
 
     if ((response.status === 401 || response.status === 403) && !url.includes('/login')) {
-        redirectToLoginIfNotAuthenticated();
+        alert('Sua sessão expirou ou é inválida. Por favor, faça login novamente.');
+        logout();
         throw new Error('Acesso não autorizado ou token inválido.');
     }
 

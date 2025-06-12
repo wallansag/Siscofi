@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const adminLink = document.createElement('a');
             adminLink.href = 'admin-usuarios.html';
             adminLink.textContent = 'Admin';
-            adminLink.className = 'active'; // Marca como ativo na própria página de admin
+            adminLink.className = 'active';
             mainNav.insertBefore(adminLink, logoutBtn);
         }
     }
@@ -90,7 +90,7 @@ async function loadUsers() {
 
         users.forEach(user => {
             const row = document.createElement('tr');
-            const dataCadastroFormatada = new Date(user.data_cadastro).toLocaleDateString('pt-BR');
+            const dataCadastroFormatada = new Date(user.data_cadastro).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
             const isCurrentUserAdmin = user.id === currentAdminId;
             
             row.innerHTML = `
@@ -114,7 +114,6 @@ async function loadUsers() {
 
     } catch (error) {
         tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 1rem; color: red;">${error.message}</td></tr>`;
-        console.error('Erro ao carregar usuários:', error);
     }
 }
 

@@ -1,24 +1,53 @@
-import { getUserName, redirectToLoginIfNotAuthenticated, logout, fetchWithAuth, formatCurrency } from './auth.js';
-
-const API_URL = 'http://localhost:3000';
+import { getUserName, getToken, logout, fetchWithAuth, formatCurrency, getUserRole } from './auth.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    redirectToLoginIfNotAuthenticated();
-    
-    const logoutButton = document.getElementById('logoutButton');
-    if(logoutButton) logoutButton.addEventListener('click', (e) => {
-        e.preventDefault();
+    if (!getToken()) {
         logout();
-    });
+        return;
+    }
 
-    const userNameDisplay = document.querySelector('.app-header .user-info span');
-    if (userNameDisplay && getUserName()) {
-        userNameDisplay.textContent = getUserName();
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+    }
+
+    const userRole = getUserRole();
+    if (userRole === 'ADMIN') {
+        const mainNav = document.querySelector('.main-nav');
+        const logoutBtn = document.getElementById('logoutButton');
+        if (mainNav && logoutBtn && !document.querySelector('a[href="admin-usuarios.html"]')) {
+            const adminLink = document.createElement('a');
+            adminLink.href = 'admin-usuarios.html';
+            adminLink.textContent = 'Admin';
+            mainNav.insertBefore(adminLink, logoutBtn);
+        }
     }
     
     setupEventListeners();
     loadMovimentacoes();
+    loadContasRecorrentes();
 });
+
+async function loadContasRecorrentes() {
+    const select = document.getElementById('movContaRecorrente');
+    if (!select) return;
+    try {
+        const response = await fetchWithAuth('/api/contas-recorrentes');
+        const contas = await response.json();
+        select.innerHTML = '<option value="">Nenhuma</option>';
+        contas.forEach(conta => {
+            const option = document.createElement('option');
+            option.value = conta.id;
+            option.textContent = conta.nome;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Erro ao carregar contas recorrentes:', error);
+    }
+}
 
 function setupEventListeners() {
     const openModalBtn = document.getElementById('openAddMovimentacaoModalBtn');
@@ -31,15 +60,13 @@ function setupEventListeners() {
         openModalBtn.addEventListener('click', () => {
             form.reset();
             document.getElementById('movimentacaoId').value = '';
-            document.getElementById('movimentacaoModalTitle').textContent = 'Adicionar Nova Movimentação';
+            document.getElementById('movimentacaoModalTitle').textContent = 'Adicionar Novo Registro';
             modal.classList.remove('hidden');
         });
     }
 
     if (cancelBtn) {
-        cancelBtn.addEventListener('click', () => {
-            modal.classList.add('hidden');
-        });
+        cancelBtn.addEventListener('click', () => modal.classList.add('hidden'));
     }
 
     if (form) {
@@ -62,30 +89,23 @@ async function handleFormSubmit(e) {
         data: document.getElementById('movData').value,
         tipo: document.getElementById('movTipo').value,
         categoria: document.getElementById('movCategoria').value || null,
-        tipo_recorrencia: document.getElementById('movTipoRecorrencia').value
+        tipo_recorrencia: document.getElementById('movTipoRecorrencia').value,
+        conta_recorrente_id: document.getElementById('movContaRecorrente').value || null
     };
 
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/movimentacoes/${id}` : '/movimentacoes';
 
     try {
-        const response = await fetchWithAuth(url, {
-            method: method,
-            body: JSON.stringify(movimentacaoData)
-        });
-
+        const response = await fetchWithAuth(url, { method, body: JSON.stringify(movimentacaoData) });
         const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.message || 'Falha ao salvar movimentação.');
-        }
+        if (!response.ok) throw new Error(result.message || 'Falha ao salvar movimentação.');
         
         alert(result.message || 'Movimentação salva com sucesso!');
         modal.classList.add('hidden');
         loadMovimentacoes();
-
     } catch (error) {
         alert(`Erro: ${error.message}`);
-        console.error('Erro ao salvar movimentação:', error);
     }
 }
 
@@ -93,7 +113,6 @@ async function loadMovimentacoes() {
     const tableBody = document.getElementById('movimentacoesTableBody');
     if (!tableBody) return;
     tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 1rem;">Carregando...</td></tr>`;
-
     try {
         const response = await fetchWithAuth('/movimentacoes');
         if (!response.ok) throw new Error('Falha ao carregar movimentações.');
@@ -109,7 +128,6 @@ async function loadMovimentacoes() {
         movimentacoes.forEach(mov => {
             const row = document.createElement('tr');
             row.dataset.id = mov.id;
-
             const tipoClass = mov.tipo === 'ganho' ? 'type-ganho' : 'type-gasto';
             const dataFormatada = new Date(mov.data).toLocaleDateString('pt-BR', {timeZone: 'UTC'});
 
@@ -127,10 +145,8 @@ async function loadMovimentacoes() {
             `;
             tableBody.appendChild(row);
         });
-
     } catch (error) {
         tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 1rem; color: red;">${error.message}</td></tr>`;
-        console.error('Erro ao carregar movimentações:', error);
     }
 }
 
@@ -140,7 +156,6 @@ async function handleTableActions(e) {
     if (!movimentacaoRow || !movimentacaoRow.dataset.id) return;
     
     const movimentacaoId = movimentacaoRow.dataset.id;
-
     if (target.closest('.btn-delete')) {
         if (confirm('Tem certeza que deseja excluir esta movimentação?')) {
             deleteMovimentacao(movimentacaoId);
@@ -152,18 +167,13 @@ async function handleTableActions(e) {
 
 async function deleteMovimentacao(id) {
     try {
-        const response = await fetchWithAuth(`/movimentacoes/${id}`, {
-            method: 'DELETE'
-        });
+        const response = await fetchWithAuth(`/movimentacoes/${id}`, { method: 'DELETE' });
         const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.message || 'Falha ao excluir movimentação.');
-        }
-        alert(result.message || 'Movimentação excluída com sucesso!');
+        if (!response.ok) throw new Error(result.message || 'Falha ao excluir.');
+        alert(result.message || 'Movimentação excluída!');
         loadMovimentacoes();
     } catch (error) {
         alert(`Erro: ${error.message}`);
-        console.error('Erro ao excluir movimentação:', error);
     }
 }
 
@@ -171,7 +181,7 @@ async function loadMovimentacaoForEdit(id) {
     try {
         const response = await fetchWithAuth(`/movimentacoes/${id}`);
         if (!response.ok) {
-            const errorData = await response.json().catch(()=>({message: 'Movimentação não encontrada para edição.'}));
+            const errorData = await response.json().catch(()=>({message: 'Movimentação não encontrada.'}));
             throw new Error(errorData.message);
         }
         const mov = await response.json();
@@ -183,11 +193,11 @@ async function loadMovimentacaoForEdit(id) {
         document.getElementById('movTipo').value = mov.tipo;
         document.getElementById('movCategoria').value = mov.categoria || '';
         document.getElementById('movTipoRecorrencia').value = mov.tipo_recorrencia;
+        document.getElementById('movContaRecorrente').value = mov.conta_recorrente_id || '';
 
-        document.getElementById('movimentacaoModalTitle').textContent = 'Editar Movimentação';
+        document.getElementById('movimentacaoModalTitle').textContent = 'Editar Registro';
         document.getElementById('movimentacaoModal').classList.remove('hidden');
     } catch (error) {
-        alert(`Erro ao carregar movimentação para edição: ${error.message}`);
-        console.error('Erro ao carregar para edição:', error);
+        alert(`Erro ao carregar movimentação: ${error.message}`);
     }
 }

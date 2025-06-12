@@ -1,13 +1,28 @@
-import { getUserName, redirectToLoginIfNotAuthenticated, logout, fetchWithAuth } from './auth.js';
+import { getUserName, getToken, logout, fetchWithAuth, getUserRole } from './auth.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    redirectToLoginIfNotAuthenticated();
+    if (!getToken()) {
+        logout();
+        return;
+    }
     
     const logoutButton = document.getElementById('logoutButton');
     if(logoutButton) logoutButton.addEventListener('click', (e) => {
         e.preventDefault();
         logout();
     });
+    
+    const userRole = getUserRole();
+    if (userRole === 'ADMIN') {
+        const mainNav = document.querySelector('.main-nav');
+        const logoutBtn = document.getElementById('logoutButton');
+        if (mainNav && logoutBtn && !document.querySelector('a[href="admin-usuarios.html"]')) {
+            const adminLink = document.createElement('a');
+            adminLink.href = 'admin-usuarios.html';
+            adminLink.textContent = 'Admin';
+            mainNav.insertBefore(adminLink, logoutBtn);
+        }
+    }
     
     loadDicas();
 });
@@ -45,6 +60,5 @@ async function loadDicas() {
 
     } catch (error) {
         container.innerHTML = `<p style="color: red;">Erro ao carregar dicas: ${error.message}</p>`;
-        console.error('Erro ao carregar dicas:', error);
     }
 }

@@ -1,16 +1,30 @@
-import { getUserName, redirectToLoginIfNotAuthenticated, logout, fetchWithAuth, formatCurrency } from './auth.js';
+import { getUserName, getToken, logout, fetchWithAuth, formatCurrency, getUserRole } from './auth.js';
 
-const API_URL = 'http://localhost:3000';
 let chartInstances = {};
 
 document.addEventListener('DOMContentLoaded', () => {
-    redirectToLoginIfNotAuthenticated();
+    if (!getToken()) {
+        logout();
+        return;
+    }
     
     const logoutButton = document.getElementById('logoutButton');
     if(logoutButton) logoutButton.addEventListener('click', (e) => {
         e.preventDefault();
         logout();
     });
+    
+    const userRole = getUserRole();
+    if (userRole === 'ADMIN') {
+        const mainNav = document.querySelector('.main-nav');
+        const logoutBtn = document.getElementById('logoutButton');
+        if (mainNav && logoutBtn && !document.querySelector('a[href="admin-usuarios.html"]')) {
+            const adminLink = document.createElement('a');
+            adminLink.href = 'admin-usuarios.html';
+            adminLink.textContent = 'Admin';
+            mainNav.insertBefore(adminLink, logoutBtn);
+        }
+    }
     
     setupEventListeners();
     loadMetas();
@@ -55,7 +69,6 @@ function setupEventListeners() {
             const target = e.target;
             const metaCard = target.closest('.meta-card');
             if (!metaCard) return;
-
             const metaId = metaCard.dataset.id;
             
             if (target.closest('.btn-delete-meta')) {
@@ -96,23 +109,9 @@ async function handleMetaSubmit(e) {
     const url = id ? `/metas/${id}` : `/metas`;
 
     try {
-        const response = await fetchWithAuth(url, {
-            method,
-            body: JSON.stringify(metaData)
-        });
-        
-        let result = {};
-        try {
-            result = await response.json();
-        } catch (jsonError) {
-             if (!response.ok) {
-                throw new Error('Falha ao salvar a meta. Resposta do servidor não é JSON válido.');
-            }
-        }
-
-        if (!response.ok) {
-            throw new Error(result.message || 'Falha ao salvar a meta.');
-        }
+        const response = await fetchWithAuth(url, { method, body: JSON.stringify(metaData) });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Falha ao salvar a meta.');
         
         alert(result.message || 'Meta salva com sucesso!');
         document.getElementById('metaModal').classList.add('hidden');
@@ -129,7 +128,6 @@ async function getMetaById(id) {
         if (!response.ok) return null;
         return await response.json();
     } catch (error) {
-        console.error("Erro ao buscar meta por ID:", error);
         return null;
     }
 }
@@ -141,7 +139,6 @@ async function loadMetaForEdit(id) {
             alert('Meta não encontrada para edição.');
             return;
         }
-
         document.getElementById('metaId').value = meta.id;
         document.getElementById('metaNome').value = meta.nome_meta;
         document.getElementById('metaValor').value = meta.valor_alvo;
@@ -159,17 +156,8 @@ async function loadMetaForEdit(id) {
 async function deleteMeta(id) {
     try {
         const response = await fetchWithAuth(`/metas/${id}`, { method: 'DELETE' });
-        let result = {};
-        try {
-            result = await response.json();
-        } catch (jsonError) {
-            if (!response.ok) {
-                throw new Error('Falha ao excluir meta. Resposta do servidor não é JSON válido.');
-            }
-        }
-        if (!response.ok) {
-            throw new Error(result.message || 'Falha ao excluir a meta.');
-        }
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Falha ao excluir a meta.');
         alert(result.message || 'Meta excluída com sucesso!');
         loadMetas();
         loadSaldoSiscofiAtual();
@@ -181,19 +169,14 @@ async function deleteMeta(id) {
 async function loadSaldoSiscofiAtual() {
     const saldoDisplay = document.getElementById('saldoSiscofiAtualDisplay');
     if (!saldoDisplay) return;
-
     saldoDisplay.textContent = 'Carregando...';
     try {
         const response = await fetchWithAuth('/api/dashboard/resumo');
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: 'Não foi possível carregar o saldo Siscofi.' }));
-            throw new Error(errorData.message);
-        }
+        if (!response.ok) throw new Error('Não foi possível carregar o saldo Siscofi.');
         const data = await response.json();
         saldoDisplay.textContent = formatCurrency(data.saldoAtual);
     } catch (error) {
         saldoDisplay.textContent = 'Erro ao carregar.';
-        console.error(error);
     }
 }
 
@@ -203,7 +186,6 @@ async function handleDistribuirSaldoSubmit(e) {
     const messageDiv = document.getElementById('distribuirSaldoMessage');
     if(!messageDiv) return;
     messageDiv.textContent = '';
-
     const valor_a_distribuir = parseFloat(valorInput.value);
 
     if (isNaN(valor_a_distribuir) || valor_a_distribuir <= 0) {
@@ -211,51 +193,32 @@ async function handleDistribuirSaldoSubmit(e) {
         messageDiv.style.color = 'red';
         return;
     }
-
     try {
         const response = await fetchWithAuth('/api/metas/distribuir-saldo', {
             method: 'POST',
             body: JSON.stringify({ valor_a_distribuir })
         });
-
-        let result = {};
-        try {
-            result = await response.json();
-        } catch (jsonError) {
-            if (!response.ok) { 
-                console.error("Resposta do servidor não foi JSON e status não é OK", response.status, response.statusText);
-                throw new Error('Falha ao distribuir saldo. Verifique o console do servidor.');
-            }
-            
-        }
         
-        if (!response.ok) {
-            throw new Error(result.message || 'Falha ao distribuir saldo.');
-        }
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || 'Falha ao distribuir saldo.');
         
         messageDiv.textContent = result.message || 'Saldo distribuído com sucesso!';
         messageDiv.style.color = 'green';
         valorInput.value = '';
         loadMetas(); 
         loadSaldoSiscofiAtual();
-
     } catch (error) {
         messageDiv.textContent = `Erro: ${error.message}`;
         messageDiv.style.color = 'red';
-        console.error('Erro ao distribuir saldo:', error);
     }
 }
 
 async function getAllMetasData(){
     try{
         const response = await fetchWithAuth('/metas');
-        if (!response.ok) {
-            console.error("Falha ao buscar dados de metas para gráficos");
-            return [];
-        }
+        if (!response.ok) return [];
         return await response.json();
     } catch(e){
-        console.error("Erro em getAllMetasData:", e);
         return [];
     }
 }
@@ -263,37 +226,24 @@ async function getAllMetasData(){
 async function loadMetas() {
     const container = document.getElementById('metasContainer');
     const openAddMetaModalBtn = document.getElementById('openAddMetaModalBtn');
-    let metaLimitMessageEl = document.getElementById('metaLimitMessage');
+    const metaLimitMessageEl = document.getElementById('metaLimitMessage');
 
-    if (!container || !openAddMetaModalBtn) {
-        console.error("Elementos essenciais da página de metas não encontrados.");
-        return;
-    }
+    if (!container || !openAddMetaModalBtn || !metaLimitMessageEl) return;
     container.innerHTML = '<p>Carregando metas...</p>';
     
     try {
         const metas = await getAllMetasData();
         container.innerHTML = '';
-
+        
         if (metas.length >= 3) {
             openAddMetaModalBtn.disabled = true;
             openAddMetaModalBtn.title = 'Você atingiu o limite de 3 metas.';
-
-            if (!metaLimitMessageEl && openAddMetaModalBtn.parentNode) {
-                metaLimitMessageEl = document.createElement('p');
-                metaLimitMessageEl.id = 'metaLimitMessage';
-                metaLimitMessageEl.style.color = 'orange';
-                metaLimitMessageEl.style.fontSize = '0.9em';
-                metaLimitMessageEl.style.marginTop = '5px';
-                openAddMetaModalBtn.parentNode.insertBefore(metaLimitMessageEl, openAddMetaModalBtn.nextSibling);
-            }
-            if(metaLimitMessageEl) metaLimitMessageEl.textContent = 'Você atingiu o limite máximo de 3 metas.';
+            metaLimitMessageEl.textContent = 'Você atingiu o limite máximo de 3 metas.';
+            metaLimitMessageEl.style.display = 'block';
         } else {
             openAddMetaModalBtn.disabled = false;
             openAddMetaModalBtn.title = 'Adicionar Nova Meta';
-            if (metaLimitMessageEl) {
-                metaLimitMessageEl.remove();
-            }
+            metaLimitMessageEl.style.display = 'none';
         }
 
         if (metas.length === 0) {
@@ -308,15 +258,9 @@ async function loadMetas() {
         });
         
         loadMetasCharts(metas);
-
     } catch (error) {
         container.innerHTML = `<p style="color: red;">${error.message || 'Erro ao carregar metas.'}</p>`;
         clearCharts();
-        if (openAddMetaModalBtn) {
-            openAddMetaModalBtn.disabled = false; 
-            openAddMetaModalBtn.title = 'Adicionar Nova Meta';
-            if (metaLimitMessageEl) metaLimitMessageEl.remove();
-        }
     }
 }
 
@@ -349,37 +293,30 @@ function createMetaCardHtml(meta) {
     `;
 }
 
-
 function loadMetasCharts(metas) {
     renderProgressoMetasChart(metas);
     renderMetasPorCategoriaChart(metas);
 }
 
 function clearCharts() {
-    if (chartInstances['progressoMetasChart']) {
-        chartInstances['progressoMetasChart'].destroy();
-        delete chartInstances['progressoMetasChart'];
-    }
-    if (chartInstances['metasPorCategoriaChart']) {
-        chartInstances['metasPorCategoriaChart'].destroy();
-        delete chartInstances['metasPorCategoriaChart'];
-    }
+    Object.keys(chartInstances).forEach(key => {
+        if(chartInstances[key]) {
+            chartInstances[key].destroy();
+            delete chartInstances[key];
+        }
+    });
 }
 
 function renderProgressoMetasChart(metas) {
     const canvasId = 'progressoMetasChart';
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
-
-    if (chartInstances[canvasId]) {
-        chartInstances[canvasId].destroy();
-    }
+    if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
 
     const metasAtivas = metas.filter(m => m.ativa === 1 || m.ativa === true);
-
     if (metasAtivas.length === 0) {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        if (chartInstances[canvasId]) delete chartInstances[canvasId]; 
+        delete chartInstances[canvasId];
         ctx.font = "16px Arial";
         ctx.textAlign = "center";
         ctx.fillText("Sem metas ativas para exibir progresso.", ctx.canvas.width / 2, ctx.canvas.height / 2);
@@ -390,46 +327,20 @@ function renderProgressoMetasChart(metas) {
         type: 'bar',
         data: {
             labels: metasAtivas.map(m => m.nome_meta),
-            datasets: [
-                {
-                    label: 'Valor Acumulado',
-                    data: metasAtivas.map(m => m.valor_acumulado),
-                    backgroundColor: 'rgba(72, 187, 120, 0.6)',
-                    borderColor: 'rgba(72, 187, 120, 1)',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Valor Restante',
-                    data: metasAtivas.map(m => Math.max(0, m.valor_alvo - m.valor_acumulado)),
-                    backgroundColor: 'rgba(239, 68, 68, 0.6)',
-                    borderColor: 'rgba(239, 68, 68, 1)',
-                    borderWidth: 1
-                }
-            ]
+            datasets: [{
+                label: 'Valor Acumulado',
+                data: metasAtivas.map(m => m.valor_acumulado),
+                backgroundColor: 'rgba(72, 187, 120, 0.6)',
+            }, {
+                label: 'Valor Restante',
+                data: metasAtivas.map(m => Math.max(0, m.valor_alvo - m.valor_acumulado)),
+                backgroundColor: 'rgba(239, 68, 68, 0.6)',
+            }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'y',
-            scales: {
-                x: {
-                    stacked: true,
-                    title: { display: true, text: 'Valor (R$)' },
-                     ticks: { callback: value => formatCurrency(value) }
-                },
-                y: {
-                    stacked: true
-                }
-            },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + formatCurrency(context.raw);
-                        }
-                    }
-                }
-            }
+            responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+            scales: { x: { stacked: true }, y: { stacked: true } },
+            plugins: { tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${formatCurrency(context.raw)}` } } }
         }
     });
 }
@@ -438,16 +349,12 @@ function renderMetasPorCategoriaChart(metas) {
     const canvasId = 'metasPorCategoriaChart';
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
-
-    if (chartInstances[canvasId]) {
-        chartInstances[canvasId].destroy();
-    }
+    if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
 
     const metasAtivas = metas.filter(m => m.ativa === 1 || m.ativa === true);
-    
     if (metasAtivas.length === 0) {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        if (chartInstances[canvasId]) delete chartInstances[canvasId];
+        delete chartInstances[canvasId];
         ctx.font = "16px Arial";
         ctx.textAlign = "center";
         ctx.fillText("Sem metas para exibir por categoria.", ctx.canvas.width / 2, ctx.canvas.height / 2);
@@ -465,34 +372,13 @@ function renderMetasPorCategoriaChart(metas) {
         data: {
             labels: Object.keys(dataPorCategoria),
             datasets: [{
-                label: 'Valor Alvo por Categoria',
                 data: Object.values(dataPorCategoria),
-                backgroundColor: [
-                    'rgba(66, 153, 225, 0.7)', 'rgba(246, 173, 85, 0.7)',
-                    'rgba(72, 187, 120, 0.7)', 'rgba(237, 137, 54, 0.7)',
-                    'rgba(160, 174, 192, 0.7)', 'rgba(236, 201, 75, 0.7)'
-                ],
-                borderColor: [
-                     '#4299e1', '#f6ad55', '#48bb78', '#ed8936', '#a0aec0', '#ecc94b'
-                ],
-                borderWidth: 1
+                backgroundColor: ['#4299e1', '#f6ad55', '#48bb78', '#ed8936', '#a0aec0', '#ecc94b']
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                tooltip: {
-                     callbacks: {
-                        label: function(context) {
-                            let label = context.label || '';
-                            if (label) label += ': ';
-                            if (context.parsed !== null) label += formatCurrency(context.parsed);
-                            return label;
-                        }
-                    }
-                }
-            }
+            responsive: true, maintainAspectRatio: false,
+            plugins: { tooltip: { callbacks: { label: (context) => `${context.label}: ${formatCurrency(context.raw)}` } } }
         }
     });
 }

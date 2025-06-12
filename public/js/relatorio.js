@@ -1,10 +1,13 @@
-import { getUserName, redirectToLoginIfNotAuthenticated, logout, fetchWithAuth, formatCurrency, getUserRole } from './auth.js';
+import { getUserName, getToken, logout, fetchWithAuth, formatCurrency, getUserRole } from './auth.js';
 
 let expensesByCategoryChartInstance;
 let monthlyComparisonChartInstance;
 
 document.addEventListener('DOMContentLoaded', () => {
-    redirectToLoginIfNotAuthenticated();
+    if (!getToken()) {
+        logout();
+        return;
+    }
 
     const logoutButton = document.getElementById('logoutButton');
     if (logoutButton) {
@@ -12,11 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             logout();
         });
-    }
-
-    const userNameDisplay = document.querySelector('.app-header .user-info span');
-    if (userNameDisplay && getUserName()) {
-        userNameDisplay.textContent = getUserName();
     }
     
     const userRole = getUserRole();
@@ -49,7 +47,6 @@ async function loadRelatorioData() {
     const topDespesasList = document.getElementById('topDespesasList');
 
     if (!totalReceitasSpan || !totalDespesasSpan || !saldoRelatorioSpan || !topDespesasList) {
-        console.error('Elementos do DOM para resumo não encontrados.');
         return;
     }
     
@@ -57,7 +54,6 @@ async function loadRelatorioData() {
     totalDespesasSpan.textContent = 'Carregando...';
     saldoRelatorioSpan.textContent = 'Carregando...';
     topDespesasList.innerHTML = '<li>Carregando...</li>';
-
 
     const params = new URLSearchParams();
     if (startDateInput?.value) {
@@ -96,7 +92,6 @@ async function loadRelatorioData() {
         renderMonthlyComparisonChart(data.monthlyComparisonData || []);
 
     } catch (error) {
-        console.error('Erro ao buscar ou processar dados do relatório:', error);
         if(topDespesasList) topDespesasList.innerHTML = `<li>Erro ao carregar dados.</li>`;
         alert(`Erro ao carregar relatórios: ${error.message}`);
     }
@@ -106,10 +101,7 @@ function renderExpensesByCategoryChart(expensesData) {
     const canvasId = 'despesasChart';
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
-
-    if (expensesByCategoryChartInstance) {
-        expensesByCategoryChartInstance.destroy();
-    }
+    if (expensesByCategoryChartInstance) expensesByCategoryChartInstance.destroy();
     
     const labels = Object.keys(expensesData);
     const dataValues = Object.values(expensesData);
@@ -132,8 +124,7 @@ function renderExpensesByCategoryChart(expensesData) {
             }]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             plugins: { tooltip: { callbacks: { label: (context) => `${context.label}: ${formatCurrency(context.raw)}` } } }
         }
     });
@@ -143,10 +134,7 @@ function renderMonthlyComparisonChart(monthlyData) {
     const canvasId = 'receitasDespesasChart';
     const ctx = document.getElementById(canvasId)?.getContext('2d');
     if (!ctx) return;
-
-    if (monthlyComparisonChartInstance) {
-        monthlyComparisonChartInstance.destroy();
-    }
+    if (monthlyComparisonChartInstance) monthlyComparisonChartInstance.destroy();
 
     if (!monthlyData || monthlyData.length === 0) {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -174,8 +162,7 @@ function renderMonthlyComparisonChart(monthlyData) {
             ]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             plugins: { tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${formatCurrency(context.parsed.y)}` } } },
             scales: { y: { beginAtZero: true, ticks: { callback: value => formatCurrency(value) } } }
         }
