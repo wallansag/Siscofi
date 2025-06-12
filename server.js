@@ -561,33 +561,77 @@ app.get('/api/dashboard/gastos-por-categoria', authenticateToken, async (req, re
 
 app.get('/api/relatorios', authenticateToken, async (req, res) => {
     const userId = req.user.userId;
+    const { startDate, endDate } = req.query;
+
     try {
-        const [summaryResults] = await pool.query(`SELECT COALESCE(SUM(CASE WHEN tipo = 'ganho' THEN valor ELSE 0 END), 0) AS totalReceitas, COALESCE(SUM(CASE WHEN tipo = 'gasto' THEN valor ELSE 0 END), 0) AS totalDespesas, COALESCE(SUM(CASE WHEN tipo = 'ganho' THEN valor ELSE -valor END), 0) AS saldo FROM movimentacoes WHERE usuario_id = ?;`, [userId]);
-        const { totalReceitas, totalDespesas, saldo } = summaryResults[0];
-        const oneYearAgo = new Date();
-        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-        const [topExpensesResults] = await pool.query(`SELECT descricao, COALESCE(SUM(valor), 0) AS total_gasto FROM movimentacoes WHERE usuario_id = ? AND tipo = 'gasto' AND data >= ? GROUP BY descricao ORDER BY total_gasto DESC LIMIT 5;`, [userId, oneYearAgo.toISOString().split('T')[0]]);
-        const topDespesas = topExpensesResults.map(row => ({ descricao: row.descricao, total_gasto: parseFloat(row.total_gasto) }));
-        const now = new Date();
-        const currentMonth = now.getMonth() + 1;
-        const currentYear = now.getFullYear();
-        const [categoryExpensesResults] = await pool.query(`SELECT COALESCE(categoria, 'Outros') AS categoria, COALESCE(SUM(valor), 0) AS total_gasto FROM movimentacoes WHERE usuario_id = ? AND tipo = 'gasto' AND MONTH(data) = ? AND YEAR(data) = ? GROUP BY categoria ORDER BY total_gasto DESC;`, [userId, currentMonth, currentYear]);
+        const params = [userId];
+        let dateFilterSql = '';
+
+        if (startDate && endDate) {
+            dateFilterSql = ' AND data BETWEEN ? AND ?';
+            params.push(startDate, endDate);
+        }
+
+        const [summaryResults] = await pool.query(
+            `SELECT
+                COALESCE(SUM(CASE WHEN tipo = 'ganho' THEN valor ELSE 0 END), 0) AS totalReceitas,
+                COALESCE(SUM(CASE WHEN tipo = 'gasto' THEN valor ELSE 0 END), 0) AS totalDespesas,
+                COALESCE(SUM(CASE WHEN tipo = 'ganho' THEN valor ELSE -valor END), 0) AS saldo
+             FROM movimentacoes
+             WHERE usuario_id = ? ${dateFilterSql};`,
+            params
+        );
+
+        const [topExpensesResults] = await pool.query(
+            `SELECT descricao, COALESCE(SUM(valor), 0) AS total_gasto
+             FROM movimentacoes
+             WHERE usuario_id = ? AND tipo = 'gasto' ${dateFilterSql}
+             GROUP BY descricao
+             ORDER BY total_gasto DESC
+             LIMIT 5;`,
+            params
+        );
+        const topDespesas = topExpensesResults.map(row => ({
+            descricao: row.descricao,
+            total_gasto: parseFloat(row.total_gasto)
+        }));
+
+        const [categoryExpensesResults] = await pool.query(
+            `SELECT COALESCE(categoria, 'Outros') AS categoria, COALESCE(SUM(valor), 0) AS total_gasto
+             FROM movimentacoes
+             WHERE usuario_id = ? AND tipo = 'gasto' ${dateFilterSql}
+             GROUP BY categoria
+             ORDER BY total_gasto DESC;`,
+            params
+        );
         const expensesByCategory = {};
         categoryExpensesResults.forEach(row => {
             expensesByCategory[row.categoria] = parseFloat(row.total_gasto);
         });
-        const [monthlyComparisonResults] = await pool.query(`SELECT YEAR(data) as ano, MONTH(data) as mes, COALESCE(SUM(CASE WHEN tipo = 'ganho' THEN valor ELSE 0 END), 0) AS receitas, COALESCE(SUM(CASE WHEN tipo = 'gasto' THEN valor ELSE 0 END), 0) AS despesas FROM movimentacoes WHERE usuario_id = ? AND data >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH) GROUP BY ano, mes ORDER BY ano ASC, mes ASC;`, [userId]);
+
+        const [monthlyComparisonResults] = await pool.query(
+            `SELECT YEAR(data) as ano, MONTH(data) as mes,
+                COALESCE(SUM(CASE WHEN tipo = 'ganho' THEN valor ELSE 0 END), 0) AS receitas,
+                COALESCE(SUM(CASE WHEN tipo = 'gasto' THEN valor ELSE 0 END), 0) AS despesas
+             FROM movimentacoes
+             WHERE usuario_id = ? AND data >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+             GROUP BY ano, mes
+             ORDER BY ano ASC, mes ASC;`,
+            [userId]
+        );
+
+        const now = new Date();
         const monthlyComparisonData = [];
         const dateMap = new Map();
         for (let i = 11; i >= 0; i--) {
             const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const year = date.getFullYear();
             const month = date.getMonth() + 1;
-            const monthKey = `<span class="math-inline">\{year\}\-</span>{String(month).padStart(2, '0')}`;
+            const monthKey = `${year}-${String(month).padStart(2, '0')}`;
             dateMap.set(monthKey, { month: monthKey, receitas: 0, despesas: 0 });
         }
         monthlyComparisonResults.forEach(row => {
-            const monthKey = `<span class="math-inline">\{row\.ano\}\-</span>{String(row.mes).padStart(2, '0')}`;
+            const monthKey = `${row.ano}-${String(row.mes).padStart(2, '0')}`;
             if (dateMap.has(monthKey)) {
                 const dataEntry = dateMap.get(monthKey);
                 dataEntry.receitas = parseFloat(row.receitas);
@@ -595,7 +639,16 @@ app.get('/api/relatorios', authenticateToken, async (req, res) => {
             }
         });
         monthlyComparisonData.push(...Array.from(dateMap.values()));
-        res.status(200).json({ totalReceitas: parseFloat(totalReceitas), totalDespesas: parseFloat(totalDespesas), saldo: parseFloat(saldo), topDespesas, expensesByCategory, monthlyComparisonData });
+
+        res.status(200).json({
+            totalReceitas: parseFloat(summaryResults[0].totalReceitas),
+            totalDespesas: parseFloat(summaryResults[0].totalDespesas),
+            saldo: parseFloat(summaryResults[0].saldo),
+            topDespesas,
+            expensesByCategory,
+            monthlyComparisonData
+        });
+
     } catch (error) {
         handleServerError(res, error, 'Erro ao buscar dados de relatórios.');
     }

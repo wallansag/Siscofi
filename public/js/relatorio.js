@@ -19,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
         userNameDisplay.textContent = getUserName();
     }
     
-    // --- LÓGICA CORRIGIDA/ADICIONADA AQUI ---
     const userRole = getUserRole();
     if (userRole === 'ADMIN') {
         const mainNav = document.querySelector('.main-nav');
@@ -31,7 +30,6 @@ document.addEventListener('DOMContentLoaded', () => {
             mainNav.insertBefore(adminLink, logoutBtn);
         }
     }
-    // --- FIM DA CORREÇÃO ---
 
     const applyFilterBtn = document.getElementById('applyFilterBtn');
     if (applyFilterBtn) {
