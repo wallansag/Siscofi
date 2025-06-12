@@ -1,4 +1,4 @@
-import { getUserName, redirectToLoginIfNotAuthenticated, logout, fetchWithAuth, formatCurrency } from './auth.js';
+import { getUserName, redirectToLoginIfNotAuthenticated, logout, fetchWithAuth, formatCurrency, getUserRole } from './auth.js';
 
 let expensesByCategoryChartInstance;
 let monthlyComparisonChartInstance;
@@ -18,6 +18,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (userNameDisplay && getUserName()) {
         userNameDisplay.textContent = getUserName();
     }
+    
+    // --- LÓGICA CORRIGIDA/ADICIONADA AQUI ---
+    const userRole = getUserRole();
+    if (userRole === 'ADMIN') {
+        const mainNav = document.querySelector('.main-nav');
+        const logoutBtn = document.getElementById('logoutButton');
+        if (mainNav && logoutBtn && !document.querySelector('a[href="admin-usuarios.html"]')) {
+            const adminLink = document.createElement('a');
+            adminLink.href = 'admin-usuarios.html';
+            adminLink.textContent = 'Admin';
+            mainNav.insertBefore(adminLink, logoutBtn);
+        }
+    }
+    // --- FIM DA CORREÇÃO ---
 
     const applyFilterBtn = document.getElementById('applyFilterBtn');
     if (applyFilterBtn) {
@@ -33,30 +47,29 @@ async function loadRelatorioData() {
     
     const totalReceitasSpan = document.getElementById('totalReceitas');
     const totalDespesasSpan = document.getElementById('totalDespesas');
-    const saldoRelatorioSpan = document.getElementById('saldoRelatorio'); 
+    const saldoRelatorioSpan = document.getElementById('saldoRelatorio');
     const topDespesasList = document.getElementById('topDespesasList');
-
 
     if (!totalReceitasSpan || !totalDespesasSpan || !saldoRelatorioSpan || !topDespesasList) {
         console.error('Elementos do DOM para resumo não encontrados.');
         return;
     }
     
-    totalReceitasSpan.textContent = formatCurrency(0);
-    totalDespesasSpan.textContent = formatCurrency(0);
-    saldoRelatorioSpan.textContent = formatCurrency(0);
+    totalReceitasSpan.textContent = 'Carregando...';
+    totalDespesasSpan.textContent = 'Carregando...';
+    saldoRelatorioSpan.textContent = 'Carregando...';
     topDespesasList.innerHTML = '<li>Carregando...</li>';
 
 
-    let queryParams = '';
-    if (startDateInput && startDateInput.value) {
-        queryParams += `startDate=${startDateInput.value}`;
+    const params = new URLSearchParams();
+    if (startDateInput?.value) {
+        params.append('startDate', startDateInput.value);
     }
-    if (endDateInput && endDateInput.value) {
-        queryParams += `${queryParams ? '&' : ''}endDate=${endDateInput.value}`;
+    if (endDateInput?.value) {
+        params.append('endDate', endDateInput.value);
     }
-
-    const url = `/api/relatorios${queryParams ? '?' + queryParams : ''}`;
+    const queryString = params.toString();
+    const url = `/api/relatorios${queryString ? '?' + queryString : ''}`;
 
     try {
         const response = await fetchWithAuth(url);
@@ -107,7 +120,7 @@ function renderExpensesByCategoryChart(expensesData) {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
         ctx.font = "16px Arial";
         ctx.textAlign = "center";
-        ctx.fillText("Sem dados de despesas por categoria para exibir.", ctx.canvas.width / 2, ctx.canvas.height / 2);
+        ctx.fillText("Sem dados de despesas para exibir.", ctx.canvas.width / 2, ctx.canvas.height / 2);
         return;
     }
 
@@ -116,29 +129,14 @@ function renderExpensesByCategoryChart(expensesData) {
         data: {
             labels: labels,
             datasets: [{
-                label: 'Gastos por Categoria',
                 data: dataValues,
-                backgroundColor: ['#f56565', '#ed8936', '#ecc94b', '#48bb78', '#4299e1', '#9f7aea', '#ed64a6'],
-                hoverOffset: 4
+                backgroundColor: ['#f56565', '#ed8936', '#ecc94b', '#48bb78', '#4299e1', '#9f7aea'],
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'top' },
-                title: { display: false }, // O título já está no HTML
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.label || '';
-                            if (label) label += ': ';
-                            if (context.parsed !== null) label += formatCurrency(context.parsed);
-                            return label;
-                        }
-                    }
-                }
-            }
+            plugins: { tooltip: { callbacks: { label: (context) => `${context.label}: ${formatCurrency(context.raw)}` } } }
         }
     });
 }
@@ -173,45 +171,15 @@ function renderMonthlyComparisonChart(monthlyData) {
         data: {
             labels: labels,
             datasets: [
-                {
-                    label: 'Receitas',
-                    data: receitas,
-                    backgroundColor: 'rgba(72, 187, 120, 0.7)', 
-                    borderColor: 'rgba(72, 187, 120, 1)',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Despesas',
-                    data: despesas,
-                    backgroundColor: 'rgba(245, 101, 101, 0.7)', 
-                    borderColor: 'rgba(245, 101, 101, 1)',
-                    borderWidth: 1
-                }
+                { label: 'Receitas', data: receitas, backgroundColor: 'rgba(72, 187, 120, 0.7)' },
+                { label: 'Despesas', data: despesas, backgroundColor: 'rgba(245, 101, 101, 0.7)' }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'top' },
-                title: { display: false }, 
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.dataset.label || '';
-                            if (label) label += ': ';
-                            if (context.parsed.y !== null) label += formatCurrency(context.parsed.y);
-                            return label;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: { callback: value => formatCurrency(value) }
-                }
-            }
+            plugins: { tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${formatCurrency(context.parsed.y)}` } } },
+            scales: { y: { beginAtZero: true, ticks: { callback: value => formatCurrency(value) } } }
         }
     });
 }

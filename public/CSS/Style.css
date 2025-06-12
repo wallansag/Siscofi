@@ -677,3 +677,35 @@ body {
     line-height: 1.6;
     color: var(--text-color-secondary);
 }
+/* Adicione ao final do seu style.css */
+.role-user {
+    background-color: #e2e8f0;
+    color: #4a5568;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.role-admin {
+    background-color: var(--accent-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.action-buttons .btn-edit-user, .action-buttons .btn-delete-user {
+    color: var(--text-color-secondary);
+}
+.action-buttons .btn-edit-user:hover {
+    color: var(--primary-color);
+}
+.action-buttons .btn-delete-user:hover {
+    color: var(--danger-color);
+}
+.action-buttons .btn-delete-user:disabled i {
+    color: #cbd5e0;
+    cursor: not-allowed;
+}

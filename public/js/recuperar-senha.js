@@ -7,22 +7,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const requestRecoveryForm = document.getElementById('requestRecoveryForm');
     const resetPasswordForm = document.getElementById('resetPasswordForm');
     
-    
+    // Verifica se há um token de recuperação na URL quando a página carrega
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     const userId = urlParams.get('userId');
 
     if (token && userId) {
-        
+        // Se encontrou token e userId, mostra o formulário de redefinição de senha
         requestContainer.classList.add('hidden');
         resetContainer.classList.remove('hidden');
     } else {
-        
+        // Se não, mostra o formulário para solicitar o e-mail
         requestContainer.classList.remove('hidden');
         resetContainer.classList.add('hidden');
     }
 
-    
+    // Event listener para o formulário de SOLICITAÇÃO de e-mail (Passo 1)
     if(requestRecoveryForm) {
         requestRecoveryForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    
+    // Event listener para o formulário de REDEFINIÇÃO de senha (Passo 2)
     if(resetPasswordForm) {
         resetPasswordForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return alert('A nova senha deve ter no mínimo 6 caracteres.');
             }
 
-            
+            // Pega o token e o userId da URL novamente para enviar ao backend
             const tokenFromUrl = urlParams.get('token');
             const userIdFromUrl = urlParams.get('userId');
 
@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(data.message);
 
                 if (response.ok) {
-                    
+                    // Redireciona para a página de login após o sucesso
                     window.location.href = 'index.html';
                 }
 
